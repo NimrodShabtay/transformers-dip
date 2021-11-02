@@ -52,9 +52,7 @@ def skip_hybrid(
     input_depth = num_input_channels
 
     for i in range(len(num_channels_down)):
-        print('level: #{}'.format(i))
         last_spatial_dim = img_sz // 2 ** i
-        print('last_spatial_dim: {}'.format(last_spatial_dim))
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
@@ -90,7 +88,7 @@ def skip_hybrid(
 
         if i >= transformer_start_level:
             deeper.add(transformer_block(num_channels_down[i], num_channels_down[i]))
-            deeper.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=last_spatial_dim, w=last_spatial_dim))
+            deeper.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=last_spatial_dim//2, w=last_spatial_dim//2))
         else:
             deeper.add(conv(num_channels_down[i], num_channels_down[i], filter_size_down[i], bias=need_bias, pad=pad))
 
@@ -117,7 +115,7 @@ def skip_hybrid(
         if need1x1_up:
             # model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(transformer_block(num_channels_up[i], num_channels_up[i]))
-            model_tmp.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=last_spatial_dim, w=last_spatial_dim))
+            model_tmp.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=last_spatial_dim//2, w=last_spatial_dim//2))
             model_tmp.add(bn(num_channels_up[i]))
             model_tmp.add(act(act_fun))
 
