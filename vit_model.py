@@ -15,15 +15,15 @@ transform = Compose([
     ToTensor()
 ])
 
-cifar_trainset = datasets.CIFAR10(root='./data',
-                                  train=True,
-                                  download=False,
-                                  transform=transform)
-
-cifar_testset = datasets.CIFAR10(root="./data",
-                                 train=False,
-                                 download=False,
-                                 transform=transform)
+# cifar_trainset = datasets.CIFAR10(root='./data',
+#                                   train=True,
+#                                   download=False,
+#                                   transform=transform)
+#
+# cifar_testset = datasets.CIFAR10(root="./data",
+#                                  train=False,
+#                                  download=False,
+#                                  transform=transform)
 
 BATCH_SIZE = 1
 IMG_DIM = 32
@@ -53,7 +53,9 @@ class ProjectionBack(nn.Module):
         # self.positions = nn.Parameter(torch.randn((img_size // patch_size) ** 2 + 1, emb_size))
 
     def forward(self, x: Tensor) -> Tensor:
+        print(x.shape)
         x = self.projection(x)
+        print(x.shape)
         return x
 
 
