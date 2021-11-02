@@ -59,7 +59,7 @@ if __name__ == '__main__':
     elif fname in ['data/denoising/F16_GT.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((64, 64), resample=Image.BICUBIC)
+        img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)

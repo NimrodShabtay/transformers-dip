@@ -15,15 +15,15 @@ transform = Compose([
     ToTensor()
 ])
 
-cifar_trainset = datasets.CIFAR10(root='./data',
-                                  train=True,
-                                  download=False,
-                                  transform=transform)
-
-cifar_testset = datasets.CIFAR10(root="./data",
-                                 train=False,
-                                 download=False,
-                                 transform=transform)
+# cifar_trainset = datasets.CIFAR10(root='./data',
+#                                   train=True,
+#                                   download=False,
+#                                   transform=transform)
+#
+# cifar_testset = datasets.CIFAR10(root="./data",
+#                                  train=False,
+#                                  download=False,
+#                                  transform=transform)
 
 BATCH_SIZE = 1
 IMG_DIM = 32
@@ -74,13 +74,13 @@ class PatchEmbedding(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, emb_size: int = 768, num_heads: int = 8, dropout: float = 0):
+    def __init__(self, input_size, emb_size: int = 768, num_heads: int = 8, dropout: float = 0):
         super().__init__()
         self.emb_size = emb_size
         self.num_heads = num_heads
-        self.keys = nn.Linear(emb_size, emb_size)
-        self.queries = nn.Linear(emb_size, emb_size)
-        self.values = nn.Linear(emb_size, emb_size)
+        self.keys = nn.Linear(input_size, emb_size)
+        self.queries = nn.Linear(input_size, emb_size)
+        self.values = nn.Linear(input_size, emb_size)
         self.att_drop = nn.Dropout(dropout)
         self.projection = nn.Linear(emb_size, emb_size)
 
@@ -129,6 +129,7 @@ class FeedForwardBlock(nn.Sequential):
 
 class TransformerEncoderBlock(nn.Sequential):
     def __init__(self,
+                 input_size,
                  emb_size: int = 768,
                  drop_p: float = 0.,
                  forward_expansion: int = 4,
@@ -138,7 +139,7 @@ class TransformerEncoderBlock(nn.Sequential):
         super().__init__(
             ResidualAdd(nn.Sequential(
                 nn.LayerNorm(emb_size),
-                MultiHeadAttention(emb_size, num_heads=num_heads),
+                MultiHeadAttention(input_size, emb_size, num_heads=num_heads),
                 nn.Dropout(drop_p)
             )),
             ResidualAdd(nn.Sequential(
