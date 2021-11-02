@@ -5,56 +5,13 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 from torch import nn
 from torch import Tensor
-from torchvision.transforms import Compose, Resize, ToTensor
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader
 
-transform = Compose([
-    ToTensor()
-])
-
-# cifar_trainset = datasets.CIFAR10(root='./data',
-#                                   train=True,
-#                                   download=False,
-#                                   transform=transform)
-#
-# cifar_testset = datasets.CIFAR10(root="./data",
-#                                  train=False,
-#                                  download=False,
-#                                  transform=transform)
 
 BATCH_SIZE = 1
 IMG_DIM = 32
 PATCH_SIZE = 2
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#
-# train_loader = DataLoader(cifar_trainset,
-#                           batch_size=BATCH_SIZE,
-#                           num_workers=1)
-#
-# test_loader = DataLoader(cifar_testset,
-#                          batch_size=BATCH_SIZE,
-#                          num_workers=1)
-
-
-class ProjectionBack(nn.Module):
-    def __init__(self, out_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size=IMG_DIM):
-        self.patch_size = patch_size
-        super().__init__()
-        out_d = patch_size * patch_size * out_channels
-        self.projection = nn.Sequential(
-            # using a conv layer instead of a linear one -> performance gains
-            nn.Linear(emb_size, out_d),
-            Rearrange('b (h w) (c p1 p2)-> b c (h p1) (w p2)', p1=patch_size, p2=patch_size, h=img_size // patch_size),
-        )
-
-        # self.positions = nn.Parameter(torch.randn((img_size // patch_size) ** 2 + 1, emb_size))
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.projection(x)
-        return x
 
 
 class PatchEmbedding(nn.Module):
@@ -156,25 +113,25 @@ class TransformerEncoder(nn.Sequential):
         super().__init__(*[TransformerEncoderBlock(**kwargs) for _ in range(depth)])
 
 
-class ClassificationHead(nn.Sequential):
-    def __init__(self, emb_size: int = 768, n_classes: int = 1000):
-        super().__init__(
-            Reduce('b n e -> b e', reduction='mean'),
-            nn.LayerNorm(emb_size),
-            nn.Linear(emb_size, n_classes))
+# class ClassificationHead(nn.Sequential):
+#     def __init__(self, emb_size: int = 768, n_classes: int = 1000):
+#         super().__init__(
+#             Reduce('b n e -> b e', reduction='mean'),
+#             nn.LayerNorm(emb_size),
+#             nn.Linear(emb_size, n_classes))
 
 
-class ViT(nn.Sequential):
-    def __init__(self,
-                 in_channels: int = 3,
-                 patch_size: int = PATCH_SIZE,
-                 emb_size: int = 768,
-                 img_size: int = IMG_DIM,
-                 depth: int = 6,
-                 n_classes: int = 10,
-                 **kwargs):
-        super().__init__(
-            PatchEmbedding(in_channels, patch_size, emb_size, img_size),
-            TransformerEncoder(depth, emb_size=emb_size, **kwargs),
-            ProjectionBack()
-        )
+# class ViT(nn.Sequential):
+#     def __init__(self,
+#                  in_channels: int = 3,
+#                  patch_size: int = PATCH_SIZE,
+#                  emb_size: int = 768,
+#                  img_size: int = IMG_DIM,
+#                  depth: int = 6,
+#                  n_classes: int = 10,
+#                  **kwargs):
+#         super().__init__(
+#             PatchEmbedding(in_channels, patch_size, emb_size, img_size),
+#             TransformerEncoder(depth, emb_size=emb_size, **kwargs),
+#             ClassificationHead(emb_size, n_classes)
+#         )
