@@ -15,7 +15,7 @@ PATCH_SIZE = 2
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size=IMG_DIM):
+    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768):
         self.patch_size = patch_size
         patch_dim = in_channels * patch_size * patch_size
         super().__init__()
@@ -95,7 +95,7 @@ class TransformerEncoderBlock(nn.Sequential):
                  **kwargs):
         super().__init__(
             ResidualAdd(nn.Sequential(
-                nn.LayerNorm(emb_size),
+                nn.LayerNorm(input_size),
                 MultiHeadAttention(input_size, emb_size, num_heads=num_heads),
                 nn.Dropout(drop_p)
             )),

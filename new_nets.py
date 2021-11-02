@@ -1,11 +1,8 @@
-from models import *
 from vit_model import TransformerEncoderBlock, PatchEmbedding
 from models.common import *
 
-from einops import rearrange
 from einops.layers.torch import Rearrange
 import torch.nn as nn
-import torch
 
 
 def skip_hybrid(
@@ -42,18 +39,14 @@ def skip_hybrid(
         filter_size_up = [filter_size_up] * n_scales
 
     last_scale = n_scales - 1
-    cur_depth = None
 
     model = nn.Sequential()
     model_tmp = model
 
     input_depth = num_input_channels
-    model_tmp.add(PatchEmbedding(input_depth, num_channels_skip[0] + (num_channels_up[1])))
+    model_tmp.add(PatchEmbedding(input_depth, 1, num_channels_skip[0] + (num_channels_up[1])))
 
     for i in range(len(num_channels_down)):
-        # print('level: #{}'.format(i))
-        last_spatial_dim = img_sz // 2 ** i
-        # print('last_spatial_dim: {}'.format(last_spatial_dim))
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
@@ -71,11 +64,9 @@ def skip_hybrid(
             skip.add(bn(num_channels_skip[i]))
             skip.add(act(act_fun))
 
-        # skip.add(Concat(2, GenNoise(nums_noise[i]), skip_part))
         deeper.add(nn.MaxPool1d(2))
         deeper.add(TransformerEncoderBlock(input_depth, num_channels_down[i]))
         deeper.add(transformer_block(input_depth, num_channels_down[i], patch_size=2))
-
 
         deeper.add(nn.BatchNorm1d(num_channels_down[i]))
         deeper.add(act(act_fun))
