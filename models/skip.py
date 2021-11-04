@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from .common import *
+from vit_model import PrintLayer
 
 def skip(
         num_input_channels=2, num_output_channels=3, 
@@ -51,7 +52,7 @@ def skip(
             model_tmp.add(Concat(1, skip, deeper))
         else:
             model_tmp.add(deeper)
-        
+
         model_tmp.add(bn(num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])))
 
         if num_channels_skip[i] != 0:

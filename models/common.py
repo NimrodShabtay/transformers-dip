@@ -60,6 +60,37 @@ class GenNoise(nn.Module):
         return x
 
 
+class Concat1d(nn.Module):
+    def __init__(self, dim, *args):
+        super(Concat1d, self).__init__()
+        self.dim = dim
+
+        for idx, module in enumerate(args):
+            self.add_module(str(idx), module)
+
+    def forward(self, input):
+        inputs = []
+        for module in self._modules.values():
+            inputs.append(module(input))
+
+        inputs_shapes2 = [x.shape[2] for x in inputs]
+
+        if np.all(np.array(inputs_shapes2) == min(inputs_shapes2)):
+            inputs_ = inputs
+        else:
+            target_shape2 = min(inputs_shapes2)
+
+            inputs_ = []
+            for inp in inputs:
+                diff2 = (inp.size(2) - target_shape2) // 2
+                inputs_.append(inp[:, :, diff2: diff2 + target_shape2])
+
+        return torch.cat(inputs_, dim=self.dim)
+
+    def __len__(self):
+        return len(self._modules)
+
+
 class Swish(nn.Module):
     """
         https://arxiv.org/abs/1710.05941
