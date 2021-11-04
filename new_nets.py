@@ -33,6 +33,7 @@ def skip_hybrid(
         upsample_mode = [upsample_mode] * n_scales
 
     last_scale = n_scales - 1
+    num_heads = 1
 
     model = nn.Sequential()
     model_tmp = model
@@ -53,7 +54,7 @@ def skip_hybrid(
                                                              if i < last_scale else num_channels_down[i])))
 
         if num_channels_skip[i] != 0:
-            num_heads = num_channels_skip[i] if num_channels_skip[i] < 8 else 8
+            # num_heads = num_channels_skip[i] if num_channels_skip[i] < 8 else 8
             skip.add(Rearrange('b c l -> b l c'))
             skip.add(nn.Linear(input_depth, num_channels_skip[i]))
             # skip.add(TransformerEncoderBlock(num_channels_skip[i], num_heads=num_heads))
@@ -62,7 +63,6 @@ def skip_hybrid(
             skip.add(nn.BatchNorm1d(num_channels_skip[i]))
             skip.add(act(act_fun))
 
-        num_heads = 8
         deeper.add(nn.MaxPool1d(2, stride=2))
         deeper.add(Rearrange('b c l -> b l c'))
         deeper.add(nn.Linear(input_depth, num_channels_down[i]))
@@ -73,6 +73,7 @@ def skip_hybrid(
         deeper.add(act(act_fun))
 
         deeper.add(Rearrange('b c l -> b l c'))
+        # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
         deeper.add(nn.TransformerEncoderLayer(num_channels_down[i], num_heads, num_channels_down[i], 0))
         deeper.add(Rearrange('b l c -> b c l'))
         deeper.add(nn.BatchNorm1d(num_channels_down[i]))
@@ -91,6 +92,7 @@ def skip_hybrid(
 
         model_tmp.add(Rearrange('b c l -> b l c'))
         model_tmp.add(nn.Linear(num_channels_skip[i] + k, num_channels_up[i]))
+        # model_tmp.add(TransformerEncoderBlock(num_channels_up[i]))
         model_tmp.add(nn.TransformerEncoderLayer(num_channels_up[i], num_heads, num_channels_up[i], 0))
         model_tmp.add(Rearrange('b l c -> b c l'))
         model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
@@ -98,6 +100,7 @@ def skip_hybrid(
 
         if need1x1_up:
             model_tmp.add(Rearrange('b c l -> b l c'))
+            # model_tmp.add(TransformerEncoderBlock(num_channels_up[i]))
             model_tmp.add(nn.TransformerEncoderLayer(num_channels_up[i], num_heads, num_channels_up[i], 0))
             model_tmp.add(Rearrange('b l c -> b c l'))
             model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
@@ -108,6 +111,7 @@ def skip_hybrid(
 
     model.add(Rearrange('b c l -> b l c'))
     model.add(nn.Linear(num_channels_up[0], num_output_channels))
+    # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
     model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
     model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
     if need_sigmoid:
