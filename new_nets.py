@@ -34,7 +34,10 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 1
-
+    emb_factor = 512 // num_channels_up[0]
+    num_channels_up = [n * emb_factor for n in num_channels_up]
+    num_channels_down = [n * emb_factor for n in num_channels_down]
+    num_channels_skip = [n * emb_factor for n in num_channels_skip]
     model = nn.Sequential()
     model_tmp = model
 
@@ -63,7 +66,7 @@ def skip_hybrid(
             skip.add(nn.BatchNorm1d(num_channels_skip[i]))
             skip.add(act(act_fun))
 
-        deeper.add(nn.MaxPool1d(2, stride=2))
+        deeper.add(nn.MaxPool1d(4, stride=4))
         deeper.add(Rearrange('b c l -> b l c'))
         deeper.add(nn.Linear(input_depth, num_channels_down[i]))
         # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
@@ -88,7 +91,7 @@ def skip_hybrid(
             deeper.add(deeper_main)
             k = num_channels_up[i + 1]
 
-        deeper.add(nn.Upsample(scale_factor=2, mode=upsample_mode[i]))
+        deeper.add(nn.Upsample(scale_factor=4, mode=upsample_mode[i]))
 
         model_tmp.add(Rearrange('b c l -> b l c'))
         model_tmp.add(nn.Linear(num_channels_skip[i] + k, num_channels_up[i]))
