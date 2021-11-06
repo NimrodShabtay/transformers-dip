@@ -34,7 +34,7 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 1
-    emb_factor = 512 // num_channels_up[0]
+    emb_factor = 1  # 512 // num_channels_up[0]
     num_channels_up = [n * emb_factor for n in num_channels_up]
     num_channels_down = [n * emb_factor for n in num_channels_down]
     num_channels_skip = [n * emb_factor for n in num_channels_skip]
