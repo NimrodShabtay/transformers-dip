@@ -45,6 +45,7 @@ def skip_hybrid(
     model_tmp.add(PatchEmbedding(input_depth, 1, input_depth))
 
     for i in range(len(num_channels_down)):
+        last_spatial_dim = img_sz // 2 ** i
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
@@ -92,7 +93,6 @@ def skip_hybrid(
             k = num_channels_up[i + 1]
 
         deeper.add(nn.Upsample(scale_factor=4, mode=upsample_mode[i]))
-
         model_tmp.add(Rearrange('b c l -> b l c'))
         model_tmp.add(nn.Linear(num_channels_skip[i] + k, num_channels_up[i]))
         # model_tmp.add(TransformerEncoderBlock(num_channels_up[i]))

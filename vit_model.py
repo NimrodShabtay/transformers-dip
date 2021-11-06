@@ -8,7 +8,6 @@ from torch import Tensor
 from einops import rearrange
 from einops.layers.torch import Rearrange
 
-
 BATCH_SIZE = 1
 IMG_DIM = 32
 PATCH_SIZE = 2
@@ -27,7 +26,9 @@ class PatchEmbedding(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
+        print(x.shape)
         x = self.projection(x)
+        print(x.shape)
         return x
 
 
