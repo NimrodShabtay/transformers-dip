@@ -6,22 +6,22 @@ ssl._create_default_https_context = ssl._create_unverified_context
 from torch import nn
 from torch import Tensor
 from einops import rearrange
-from einops.layers.torch import Rearrange, Reduce
+from einops.layers.torch import Rearrange
 
 BATCH_SIZE = 1
 IMG_DIM = 32
 PATCH_SIZE = 2
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size=IMG_DIM):
+    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768):
         self.patch_size = patch_size
         patch_dim = in_channels * patch_size * patch_size
         super().__init__()
         self.projection = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
-            nn.Linear(patch_dim, emb_size)
+            nn.Linear(patch_dim, emb_size),
+            Rearrange('b d c -> b c d')
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -95,6 +95,7 @@ class TransformerEncoderBlock(nn.Sequential):
                  num_heads=8,
                  **kwargs):
         super().__init__(
+            Rearrange('b c d -> b d c'),
             ResidualAdd(nn.Sequential(
                 nn.LayerNorm(emb_size),
                 MultiHeadAttention(emb_size, num_heads=num_heads),
@@ -105,8 +106,9 @@ class TransformerEncoderBlock(nn.Sequential):
                 FeedForwardBlock(
                     emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
                 nn.Dropout(drop_p)
-            )
-            ))
+            )),
+            Rearrange('b d c -> b c d')
+        )
 
 
 class TransformerEncoder(nn.Sequential):
@@ -114,25 +116,28 @@ class TransformerEncoder(nn.Sequential):
         super().__init__(*[TransformerEncoderBlock(**kwargs) for _ in range(depth)])
 
 
-class ClassificationHead(nn.Sequential):
-    def __init__(self, emb_size: int = 768, n_classes: int = 1000):
-        super().__init__(
-            Reduce('b n e -> b e', reduction='mean'),
-            nn.LayerNorm(emb_size),
-            nn.Linear(emb_size, n_classes))
+class VerboseExecution(nn.Module):
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+        # Register a hook for each layer
+        for name, layer in self.model.named_children():
+            layer.__name__ = name
+            layer.register_forward_hook(
+                lambda layer, input, output: print(f"{layer.__name__}: {input[0].shape}->{output.shape}")
+            )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model(x)
 
 
-class ViT(nn.Sequential):
-    def __init__(self,
-                 in_channels: int = 3,
-                 patch_size: int = PATCH_SIZE,
-                 emb_size: int = 768,
-                 img_size: int = IMG_DIM,
-                 depth: int = 6,
-                 n_classes: int = 10,
-                 **kwargs):
-        super().__init__(
-            PatchEmbedding(in_channels, patch_size, emb_size, img_size),
-            TransformerEncoder(depth, emb_size=emb_size, **kwargs),
-            ProjectionBack()
-        )
+class PrintLayer(nn.Module):
+    def __init__(self):
+        super(PrintLayer, self).__init__()
+
+    def forward(self, x):
+        # Do your print / debug stuff here
+        print(x.shape)
+        return x
+

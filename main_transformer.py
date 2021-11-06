@@ -1,10 +1,9 @@
 from __future__ import print_function
-
+# from vit_model import VerboseExecution#
 # import matplotlib.pyplot as plt
 from torchinfo import summary
 # from torchviz import make_dot
 # from graphviz import Source
-import copy
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 
@@ -109,10 +108,10 @@ if __name__ == '__main__':
         input_depth = 32
         figsize = 4
         net = get_net(input_depth, d['model'],
-                      pad, upsample_mode='bilinear',
+                      pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
                       num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
-        # net = get_net(input_depth, 'skip', pad,
+        # net_ref = get_net(input_depth, 'skip', pad,
         #               skip_n33d=128,
         #               skip_n33u=128,
         #               skip_n11=4,
