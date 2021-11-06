@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from .downsampler import Downsampler
+from einops import rearrange
 
 def add_module(self, module):
     self.add_module(str(len(self) + 1), module)
@@ -21,6 +22,9 @@ class Concat(nn.Module):
         for module in self._modules.values():
             inputs.append(module(input))
 
+        for n, inp in enumerate(inputs):
+            if len(inp.shape) < 4:
+                inputs[n] = rearrange(inp, 'b c (w h) -> b c (w) (h)', w=int(np.sqrt(inp.shape[-1])))
         inputs_shapes2 = [x.shape[2] for x in inputs]
         inputs_shapes3 = [x.shape[3] for x in inputs]        
 

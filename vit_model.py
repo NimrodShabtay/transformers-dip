@@ -1,7 +1,5 @@
 import torch
 import torch.nn.functional as F
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
 
 from torch import nn
 from torch import Tensor
