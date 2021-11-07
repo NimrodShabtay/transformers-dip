@@ -55,6 +55,11 @@ def skip_hybrid(
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
+        # if i == conv_blocks_ends + 1:
+        #     # Finish with conv blocks, project to 1D for transformer blocks
+        #     deeper.add(
+        #         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+        #                        emb_size=emb_factor * num_channels_down[i]))
         if num_channels_skip[i] != 0:
             if i <= conv_blocks_ends:
                 model_tmp.add(Concat(1, skip, deeper))
@@ -79,6 +84,11 @@ def skip_hybrid(
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
+                # if i == conv_blocks_ends + 1:
+                #     # Finish with conv blocks, project to 1D for transformer blocks
+                #     skip.add(
+                #         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                #                        emb_size=emb_factor * num_channels_down[i]))
                 skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i], num_heads))
                 skip.add(nn.BatchNorm1d(emb_factor * num_channels_skip[i]))
 
@@ -117,7 +127,8 @@ def skip_hybrid(
             current_channels_count = num_channels_skip[i] + k
             if i == conv_blocks_ends:
                 deeper.add(Rearrange('b c l -> b l c'))
-                deeper.add(nn.Linear(num_channels_down[i] * emb_factor, num_channels_down[i]))
+                if emb_factor > 1:  # Is it really necessary?
+                    deeper.add(nn.Linear(num_channels_down[i] * emb_factor, num_channels_down[i]))
                 next_spatial_dim = last_spatial_dim // 2
                 deeper.add(Rearrange('b (h w) c -> b c (h) (w)', h=next_spatial_dim, w=next_spatial_dim))
             # Conv block up-sample (2 in each dim)

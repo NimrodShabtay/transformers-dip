@@ -23,7 +23,7 @@ class PatchEmbedding(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        b, c, h, w = x.shape
+        # b, c, h, w = x.shape
         x = self.projection(x)
         return x
 

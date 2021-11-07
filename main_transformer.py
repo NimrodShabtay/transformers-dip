@@ -108,7 +108,7 @@ if __name__ == '__main__':
         #               skip_n11=4,
         #               num_scales=5,
         #               upsample_mode='bilinear').type(dtype)
-        print(net)
+        # print(net)
         summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
