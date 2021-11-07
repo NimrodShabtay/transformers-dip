@@ -148,7 +148,7 @@ def skip_hybrid(
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
 
-    if conv_blocks_ends > 0:
+    if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
         model.add(Rearrange('b c l -> b l c'))
