@@ -41,7 +41,7 @@ def skip_hybrid(
     num_heads = 1
     emb_factor = 1
     conv_blocks_ends = 0
-    assert conv_blocks_ends < n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
+    assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     model = nn.Sequential()
     model_tmp = model
@@ -59,7 +59,7 @@ def skip_hybrid(
             if i <= conv_blocks_ends:
                 model_tmp.add(Concat(1, skip, deeper))
             else:
-                if i == conv_blocks_ends + 1:
+                if i == conv_blocks_ends + 1 and conv_blocks_ends != -1:
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
                         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
@@ -148,12 +148,14 @@ def skip_hybrid(
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
 
-    model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
-    # model.add(Rearrange('b c l -> b l c'))
-    # model.add(nn.Linear(num_channels_up[0], num_output_channels))
-    # # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
-    # model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
-    # model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
+    if conv_blocks_ends > 0:
+        model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
+    else:
+        model.add(Rearrange('b c l -> b l c'))
+        model.add(nn.Linear(num_channels_up[0], num_output_channels))
+        # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
+        model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
+        model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
     if need_sigmoid:
         model.add(nn.Sigmoid())
 
