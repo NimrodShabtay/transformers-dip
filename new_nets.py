@@ -39,7 +39,7 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 1
-    emb_factor = 1  # 512 // num_channels_up[0]
+    emb_factor = 1
     conv_blocks_ends = 0
     assert conv_blocks_ends < n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
@@ -48,7 +48,7 @@ def skip_hybrid(
 
     input_depth = num_input_channels
     if conv_blocks_ends < 0:
-        model_tmp.add(PatchEmbedding(input_depth, 1, input_depth))
+        model_tmp.add(PatchEmbedding(input_depth, 1, emb_factor * input_depth))
 
     for i in range(len(num_channels_down)):
         last_spatial_dim = img_sz // 2 ** i
@@ -59,7 +59,7 @@ def skip_hybrid(
             # Finish with conv blocks, project to 1D for transformer blocks
             deeper.add(
                 PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
-                               emb_size=num_channels_down[i]))
+                               emb_size=emb_factor * num_channels_down[i]))
         if num_channels_skip[i] != 0:
             if i <= conv_blocks_ends:
                 model_tmp.add(Concat(1, skip, deeper))
@@ -70,9 +70,10 @@ def skip_hybrid(
 
         channels_ = num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])
         if i <= conv_blocks_ends:
+            # model_tmp.add(PrintLayer())
             model_tmp.add(bn(channels_))
         else:
-            model_tmp.add(nn.BatchNorm1d(channels_))
+            model_tmp.add(nn.BatchNorm1d(emb_factor * channels_))
 
         if num_channels_skip[i] != 0:
             if i <= conv_blocks_ends:
@@ -82,13 +83,13 @@ def skip_hybrid(
                 if i == conv_blocks_ends + 1:
                     # Finish with conv blocks, project to 1D for transformer blocks
                     skip.add(
-                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1, emb_size=num_channels_down[i]))
-                skip.add(transformer_block(input_depth, num_channels_skip[i], num_heads))
-                skip.add(nn.BatchNorm1d(num_channels_skip[i]))
+                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                                       emb_size=emb_factor * num_channels_down[i]))
+                skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i], num_heads))
+                skip.add(nn.BatchNorm1d(emb_factor * num_channels_skip[i]))
 
             skip.add(act(act_fun))
 
-        # deeper.add(PrintLayer())
         if i <= conv_blocks_ends:
             deeper.add(conv(input_depth, num_channels_down[i], filter_size_down[i], 2, bias=need_bias, pad=pad,
                             downsample_mode=downsample_mode[i]))
@@ -100,12 +101,13 @@ def skip_hybrid(
             deeper.add(act(act_fun))
         else:
             deeper.add(nn.MaxPool1d(4, stride=4))
-            deeper.add(transformer_block(input_depth, num_channels_down[i], num_heads))
-            deeper.add(nn.BatchNorm1d(num_channels_down[i]))
+            deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i], num_heads))
+            deeper.add(nn.BatchNorm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
-            deeper.add(transformer_block(num_channels_down[i], num_channels_down[i], num_heads))
-            deeper.add(nn.BatchNorm1d(num_channels_down[i]))
+            deeper.add(transformer_block(emb_factor * num_channels_down[i],
+                                         emb_factor * num_channels_down[i], num_heads))
+            deeper.add(nn.BatchNorm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
         deeper_main = nn.Sequential()
@@ -117,24 +119,24 @@ def skip_hybrid(
             deeper.add(deeper_main)
             k = num_channels_up[i + 1]
 
-        # deeper.add(PrintLayer())
         if i <= conv_blocks_ends:
+            current_channels_count = num_channels_skip[i] + k
             if i == conv_blocks_ends:
                 deeper.add(Rearrange('b c l -> b l c'))
-                # deeper.add(nn.Linear(input_channels, embedding_size))
+                deeper.add(nn.Linear(num_channels_down[i] * emb_factor, num_channels_down[i]))
                 next_spatial_dim = last_spatial_dim // 2
                 deeper.add(Rearrange('b (h w) c -> b c (h) (w)', h=next_spatial_dim, w=next_spatial_dim))
             # Conv block up-sample (2 in each dim)
             deeper.add(nn.Upsample(scale_factor=2, mode='bilinear'))
             model_tmp.add(
-                conv(num_channels_skip[i] + k, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
+                conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
             deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
-            model_tmp.add(transformer_block(num_channels_skip[i] + k, num_channels_up[i], num_heads))
-            model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
+            model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
+                                            emb_factor * num_channels_up[i], num_heads))
+            model_tmp.add(nn.BatchNorm1d(emb_factor * num_channels_up[i]))
 
-        # deeper.add(PrintLayer())
         model_tmp.add(act(act_fun))
 
         if need1x1_up:
@@ -142,8 +144,9 @@ def skip_hybrid(
                 model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
                 model_tmp.add(bn(num_channels_up[i]))
             else:
-                model_tmp.add(transformer_block(num_channels_up[i], num_channels_up[i], num_heads))
-                model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
+                model_tmp.add(transformer_block(emb_factor * num_channels_up[i],
+                                                emb_factor * num_channels_up[i], num_heads))
+                model_tmp.add(nn.BatchNorm1d(emb_factor * num_channels_up[i]))
 
             model_tmp.add(act(act_fun))
 
