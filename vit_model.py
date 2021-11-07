@@ -1,7 +1,5 @@
 import torch
 import torch.nn.functional as F
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
 
 from torch import nn
 from torch import Tensor
@@ -25,10 +23,8 @@ class PatchEmbedding(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        b, c, h, w = x.shape
-        print(x.shape)
+        # b, c, h, w = x.shape
         x = self.projection(x)
-        print(x.shape)
         return x
 
 

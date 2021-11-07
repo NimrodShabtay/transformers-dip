@@ -41,7 +41,6 @@ EXP = 'transformer'
 d = params_dict[EXP]
 
 if __name__ == '__main__':
-    # fname = 'loader'
     fname = 'data/denoising/F16_GT.png'
     # fname = 'data/denoising/icon-256x256.png'
     if fname == 'data/denoising/snail.jpg':
@@ -66,14 +65,6 @@ if __name__ == '__main__':
         # if PLOT:
         #     plot_image_grid([img_np, img_noisy_np], factor=4, nrow=1, count='org')
 
-    elif fname == 'loader':
-        # Add synthetic noise
-        img_np = next(iter(vit_model.train_loader))[0].squeeze(0).numpy()
-        img_pil = np_to_pil(img_np)
-        img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
-
-        # if PLOT:
-        #     plot_image_grid([img_np, img_noisy_np], factor=4, nrow=1, count='org')
     else:
         assert False
 
@@ -117,22 +108,8 @@ if __name__ == '__main__':
         #               skip_n11=4,
         #               num_scales=5,
         #               upsample_mode='bilinear').type(dtype)
-
+        # print(net)
         summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
-
-    elif fname == 'loader':
-        num_iter = 3000
-        input_depth = 32
-        figsize = 4
-
-        net = get_net(input_depth,
-                      d['model'],
-                      pad, upsample_mode='bilinear',
-                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
-                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
-        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
-    else:
-        assert False
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters

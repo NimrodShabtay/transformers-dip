@@ -1,12 +1,11 @@
-from vit_model import TransformerEncoderBlock, PatchEmbedding
+from vit_model import TransformerEncoderBlock, PatchEmbedding, PrintLayer
 from models.common import *
 
 from einops.layers.torch import Rearrange
 import torch.nn as nn
 
 # TODO: Refactor function signature + docstring
-# TODO: consider building a sequential block rearrange + linear+ Transformer + Batch
-
+# TODO: Use the patch embedding only once (skip + deeper)
 
 def skip_hybrid(
         num_input_channels=2, num_output_channels=3,
@@ -29,59 +28,91 @@ def skip_hybrid(
 
     n_scales = len(num_channels_down)
 
-    if not (isinstance(upsample_mode, list) or isinstance(upsample_mode, tuple)):
-        upsample_mode = [upsample_mode] * n_scales
+    if not (isinstance(downsample_mode, list) or isinstance(downsample_mode, tuple)):
+        downsample_mode = [downsample_mode] * n_scales
+
+    if not (isinstance(filter_size_down, list) or isinstance(filter_size_down, tuple)):
+        filter_size_down = [filter_size_down] * n_scales
+
+    if not (isinstance(filter_size_up, list) or isinstance(filter_size_up, tuple)):
+        filter_size_up = [filter_size_up] * n_scales
 
     last_scale = n_scales - 1
     num_heads = 1
-    emb_factor = 1  # 512 // num_channels_up[0]
-    num_channels_up = [n * emb_factor for n in num_channels_up]
-    num_channels_down = [n * emb_factor for n in num_channels_down]
-    num_channels_skip = [n * emb_factor for n in num_channels_skip]
+    emb_factor = 1
+    conv_blocks_ends = 0
+    assert conv_blocks_ends < n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
+
     model = nn.Sequential()
     model_tmp = model
 
     input_depth = num_input_channels
-    model_tmp.add(PatchEmbedding(input_depth, 1, input_depth))
+    if conv_blocks_ends < 0:
+        model_tmp.add(PatchEmbedding(input_depth, 1, emb_factor * input_depth))
 
     for i in range(len(num_channels_down)):
         last_spatial_dim = img_sz // 2 ** i
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
+        # if i == conv_blocks_ends + 1:
+        #     # Finish with conv blocks, project to 1D for transformer blocks
+        #     deeper.add(
+        #         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+        #                        emb_size=emb_factor * num_channels_down[i]))
         if num_channels_skip[i] != 0:
-            model_tmp.add(Concat1d(1, skip, deeper))
+            if i <= conv_blocks_ends:
+                model_tmp.add(Concat(1, skip, deeper))
+            else:
+                if i == conv_blocks_ends + 1:
+                    # Finish with conv blocks, project to 1D for transformer blocks
+                    model_tmp.add(
+                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                                       emb_size=emb_factor * num_channels_down[i]))
+                model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
 
-        model_tmp.add(nn.BatchNorm1d(num_channels_skip[i] + (num_channels_up[i + 1]
-                                                             if i < last_scale else num_channels_down[i])))
+        channels_ = num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])
+        if i <= conv_blocks_ends:
+            model_tmp.add(bn(channels_))
+        else:
+            model_tmp.add(nn.BatchNorm1d(emb_factor * channels_))
 
         if num_channels_skip[i] != 0:
-            # num_heads = num_channels_skip[i] if num_channels_skip[i] < 8 else 8
-            skip.add(Rearrange('b c l -> b l c'))
-            skip.add(nn.Linear(input_depth, num_channels_skip[i]))
-            # skip.add(TransformerEncoderBlock(num_channels_skip[i], num_heads=num_heads))
-            skip.add(nn.TransformerEncoderLayer(num_channels_skip[i], num_heads, num_channels_skip[i], 0))
-            skip.add(Rearrange('b l c -> b c l'))
-            skip.add(nn.BatchNorm1d(num_channels_skip[i]))
+            if i <= conv_blocks_ends:
+                skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
+                skip.add(bn(num_channels_skip[i]))
+            else:
+                # if i == conv_blocks_ends + 1:
+                #     # Finish with conv blocks, project to 1D for transformer blocks
+                #     skip.add(
+                #         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                #                        emb_size=emb_factor * num_channels_down[i]))
+                skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i], num_heads))
+                skip.add(nn.BatchNorm1d(emb_factor * num_channels_skip[i]))
+
             skip.add(act(act_fun))
 
-        deeper.add(nn.MaxPool1d(4, stride=4))
-        deeper.add(Rearrange('b c l -> b l c'))
-        deeper.add(nn.Linear(input_depth, num_channels_down[i]))
-        # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
-        deeper.add(nn.TransformerEncoderLayer(num_channels_down[i], num_heads, num_channels_down[i], 0))
-        deeper.add(Rearrange('b l c -> b c l'))
-        deeper.add(nn.BatchNorm1d(num_channels_down[i]))
-        deeper.add(act(act_fun))
+        if i <= conv_blocks_ends:
+            deeper.add(conv(input_depth, num_channels_down[i], filter_size_down[i], 2, bias=need_bias, pad=pad,
+                            downsample_mode=downsample_mode[i]))
+            deeper.add(bn(num_channels_down[i]))
+            deeper.add(act(act_fun))
 
-        deeper.add(Rearrange('b c l -> b l c'))
-        # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
-        deeper.add(nn.TransformerEncoderLayer(num_channels_down[i], num_heads, num_channels_down[i], 0))
-        deeper.add(Rearrange('b l c -> b c l'))
-        deeper.add(nn.BatchNorm1d(num_channels_down[i]))
-        deeper.add(act(act_fun))
+            deeper.add(conv(num_channels_down[i], num_channels_down[i], filter_size_down[i], bias=need_bias, pad=pad))
+            deeper.add(bn(num_channels_down[i]))
+            deeper.add(act(act_fun))
+        else:
+            deeper.add(nn.MaxPool1d(4, stride=4))
+            deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i], num_heads))
+            deeper.add(nn.BatchNorm1d(emb_factor * num_channels_down[i]))
+            deeper.add(act(act_fun))
+
+            deeper.add(transformer_block(emb_factor * num_channels_down[i],
+                                         emb_factor * num_channels_down[i], num_heads))
+            deeper.add(nn.BatchNorm1d(emb_factor * num_channels_down[i]))
+            deeper.add(act(act_fun))
 
         deeper_main = nn.Sequential()
 
@@ -92,39 +123,61 @@ def skip_hybrid(
             deeper.add(deeper_main)
             k = num_channels_up[i + 1]
 
-        deeper.add(nn.Upsample(scale_factor=4, mode=upsample_mode[i]))
-        model_tmp.add(Rearrange('b c l -> b l c'))
-        model_tmp.add(nn.Linear(num_channels_skip[i] + k, num_channels_up[i]))
-        # model_tmp.add(TransformerEncoderBlock(num_channels_up[i]))
-        model_tmp.add(nn.TransformerEncoderLayer(num_channels_up[i], num_heads, num_channels_up[i], 0))
-        model_tmp.add(Rearrange('b l c -> b c l'))
-        model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
+        if i <= conv_blocks_ends:
+            current_channels_count = num_channels_skip[i] + k
+            if i == conv_blocks_ends:
+                deeper.add(Rearrange('b c l -> b l c'))
+                if emb_factor > 1:  # Is it really necessary?
+                    deeper.add(nn.Linear(num_channels_down[i] * emb_factor, num_channels_down[i]))
+                next_spatial_dim = last_spatial_dim // 2
+                deeper.add(Rearrange('b (h w) c -> b c (h) (w)', h=next_spatial_dim, w=next_spatial_dim))
+            # Conv block up-sample (2 in each dim)
+            deeper.add(nn.Upsample(scale_factor=2, mode='bilinear'))
+            model_tmp.add(
+                conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
+            model_tmp.add(bn(num_channels_up[i]))
+        else:  # Transformer part
+            deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
+            model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
+                                            emb_factor * num_channels_up[i], num_heads))
+            model_tmp.add(nn.BatchNorm1d(emb_factor * num_channels_up[i]))
+
         model_tmp.add(act(act_fun))
 
         if need1x1_up:
-            model_tmp.add(Rearrange('b c l -> b l c'))
-            # model_tmp.add(TransformerEncoderBlock(num_channels_up[i]))
-            model_tmp.add(nn.TransformerEncoderLayer(num_channels_up[i], num_heads, num_channels_up[i], 0))
-            model_tmp.add(Rearrange('b l c -> b c l'))
-            model_tmp.add(nn.BatchNorm1d(num_channels_up[i]))
+            if i <= conv_blocks_ends:
+                model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
+                model_tmp.add(bn(num_channels_up[i]))
+            else:
+                model_tmp.add(transformer_block(emb_factor * num_channels_up[i],
+                                                emb_factor * num_channels_up[i], num_heads))
+                model_tmp.add(nn.BatchNorm1d(emb_factor * num_channels_up[i]))
+
             model_tmp.add(act(act_fun))
 
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
 
-    model.add(Rearrange('b c l -> b l c'))
-    model.add(nn.Linear(num_channels_up[0], num_output_channels))
-    # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
-    model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
-    model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
+    model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
+    # model.add(Rearrange('b c l -> b l c'))
+    # model.add(nn.Linear(num_channels_up[0], num_output_channels))
+    # # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
+    # model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
+    # model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
     if need_sigmoid:
         model.add(nn.Sigmoid())
 
     return model
 
 
-def transformer_block(input_channels, embedding_size, patch_size=1, num_heads=8):
+def transformer_block(input_channels, embedding_size, num_heads):
     t_block = nn.Sequential()
-    t_block.add(PatchEmbedding(in_channels=input_channels, patch_size=patch_size, emb_size=embedding_size))
-    t_block.add(TransformerEncoderBlock(input_size=embedding_size, emb_size=embedding_size, num_heads=num_heads))
+
+    t_block.add(Rearrange('b c l -> b l c'))
+    if input_channels != embedding_size:
+        t_block.add(nn.Linear(input_channels, embedding_size))
+    # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
+    t_block.add(nn.TransformerEncoderLayer(embedding_size, num_heads, embedding_size, 0))
+    t_block.add(Rearrange('b l c -> b c l'))
+
     return t_block
