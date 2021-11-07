@@ -236,7 +236,11 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
         assert False
 
 
-def plot_denoising_results(img_org, img_noise, current_res, current_res_smooth, count, title, filename):
+def plot_denoising_results(
+        img_org, img_noise,
+        current_res, current_res_smooth,
+        psnr_gt, psnr_gt_smooth,
+        count, title, filename):
     fig, axes = plt.subplots(2, 2, figsize=(20, 20))
     axes[0][0].imshow(img_org)
     axes[0][0].set_title('Original Image')
@@ -245,10 +249,10 @@ def plot_denoising_results(img_org, img_noise, current_res, current_res_smooth, 
     axes[0][1].set_title('Noisy Image')
     axes[0][1].axis('off')
     axes[1][0].imshow(current_res)
-    axes[1][0].set_title('Current Result (#{})'.format(count))
+    axes[1][0].set_title('Current Result (#{}) - PSNR {}'.format(count, psnr_gt))
     axes[1][0].axis('off')
     axes[1][1].imshow(current_res_smooth)
-    axes[1][1].set_title('Current Result Smooth(#{})'.format(count))
+    axes[1][1].set_title('Current Smooth(#{}) - PSNR {}'.format(count, psnr_gt_smooth))
     axes[1][1].axis('off')
 
     plt.suptitle(title)

@@ -9,7 +9,6 @@ from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 
 from utils.denoising_utils import *
 from models import *
-import vit_model
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -23,15 +22,15 @@ sigma_ = sigma / 255.
 params_dict = {
     'org': {
         'model': 'skip',
-        'filters': 16,
+        'filters': 128,
         'scales': 5,
         'title': 'Original',
         'filename': 'original'
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 16,
-        'scales': 4,
+        'filters': 128,
+        'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer'
     }
@@ -153,14 +152,12 @@ if __name__ == '__main__':
         if PLOT and (i % show_every == 0):
             print('Iteration %05d    Loss %f   PSNR_noisy: %f   PSRN_gt: %f PSNR_gt_sm: %f' % (
                 i, total_loss.item(), psnr_noisy, psnr_gt, psnr_gt_sm))
-            # out_np = torch_to_np(out)
+
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
-                                   out_np, out_sm_np,
-                                   i, EXP, EXP)
-            # plot_image_grid([np.clip(out_np, 0, 1),
-            #                  np.clip(torch_to_np(out_avg), 0, 1)], factor=figsize, nrow=1, count=i)
+                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP)
+
         # Backtracking
         if i % show_every == 0:
             if psnr_noisy - psnr_noisy_last < -5:
