@@ -55,22 +55,21 @@ def skip_hybrid(
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
-        if i == conv_blocks_ends + 1:
-            # Finish with conv blocks, project to 1D for transformer blocks
-            deeper.add(
-                PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
-                               emb_size=emb_factor * num_channels_down[i]))
         if num_channels_skip[i] != 0:
             if i <= conv_blocks_ends:
                 model_tmp.add(Concat(1, skip, deeper))
             else:
+                if i == conv_blocks_ends + 1:
+                    # Finish with conv blocks, project to 1D for transformer blocks
+                    model_tmp.add(
+                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                                       emb_size=emb_factor * num_channels_down[i]))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
 
         channels_ = num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])
         if i <= conv_blocks_ends:
-            # model_tmp.add(PrintLayer())
             model_tmp.add(bn(channels_))
         else:
             model_tmp.add(nn.BatchNorm1d(emb_factor * channels_))
@@ -80,11 +79,6 @@ def skip_hybrid(
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
-                if i == conv_blocks_ends + 1:
-                    # Finish with conv blocks, project to 1D for transformer blocks
-                    skip.add(
-                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
-                                       emb_size=emb_factor * num_channels_down[i]))
                 skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i], num_heads))
                 skip.add(nn.BatchNorm1d(emb_factor * num_channels_skip[i]))
 
