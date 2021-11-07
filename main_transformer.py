@@ -101,14 +101,14 @@ if __name__ == '__main__':
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
-                      num_scales=2, img_sz=img_pil.size[0]).type(dtype)
+                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
         # net_ref = get_net(input_depth, 'skip', pad,
         #               skip_n33d=128,
         #               skip_n33u=128,
         #               skip_n11=4,
         #               num_scales=5,
         #               upsample_mode='bilinear').type(dtype)
-        # print(net)
+        print(net)
         summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
