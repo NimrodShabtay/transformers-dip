@@ -3,12 +3,12 @@ import torch.nn as nn
 import torchvision
 import sys
 
-import numpy as np
 from PIL import Image
-import PIL
+from PIL import ImageFont
+from PIL import ImageDraw
 import numpy as np
-
 import matplotlib.pyplot as plt
+
 
 def crop_image(img, d=32):
     '''Make dimensions divisible by `d`'''
@@ -236,11 +236,16 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
         assert False
 
 
+best_psnr_gt = -1
+
+
 def plot_denoising_results(
         img_org, img_noise,
         current_res, current_res_smooth,
         psnr_gt, psnr_gt_smooth,
         count, title, filename):
+
+    global best_psnr_gt
     fig, axes = plt.subplots(2, 2, figsize=(20, 20))
     axes[0][0].imshow(img_org)
     axes[0][0].set_title('Original Image')
@@ -258,3 +263,17 @@ def plot_denoising_results(
     plt.suptitle(title)
     plt.savefig('{}_{}.png'.format(filename, count))
     plt.close(fig)
+
+    if psnr_gt > best_psnr_gt:
+        best_psnr_gt = psnr_gt
+        current_res_uint8 = (current_res * 255).astype(np.uint8)
+        img_pil = Image.fromarray(current_res_uint8)
+        draw = ImageDraw.Draw(img_pil)
+        # font = ImageFont.load_default()
+        font = ImageFont.truetype("arial.ttf", 12)
+        draw.text((0, 0), 'PSNR: {:.3f}'.format(psnr_gt), (0, 0, 0), font=font)
+        img_pil.save('{}_best.png'.format(filename))
+
+
+
+
