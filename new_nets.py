@@ -38,10 +38,10 @@ def skip_hybrid(
         filter_size_up = [filter_size_up] * n_scales
 
     last_scale = n_scales - 1
-    num_heads = 1
+    num_heads = 4
     emb_factor = 1
     conv_blocks_ends = 0
-    assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
+    assert conv_blocks_ends <= n_scales, "conv_block_ends must be smaller than n_scales, or -1 for non-conv blocks"
 
     model = nn.Sequential()
     model_tmp = model
@@ -154,7 +154,8 @@ def skip_hybrid(
         model.add(Rearrange('b c l -> b l c'))
         model.add(nn.Linear(num_channels_up[0], num_output_channels))
         # model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
-        model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
+        model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0,
+                                             batch_first=True))
         model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
     if need_sigmoid:
         model.add(nn.Sigmoid())
@@ -170,6 +171,7 @@ def transformer_block(input_channels, embedding_size, num_heads):
         t_block.add(nn.Linear(input_channels, embedding_size))
     # deeper.add(TransformerEncoderBlock(num_channels_down[i]))
     t_block.add(nn.TransformerEncoderLayer(embedding_size, num_heads, embedding_size, 0))
+    t_block.add(PrintLayer())
     t_block.add(Rearrange('b l c -> b c l'))
 
     return t_block
