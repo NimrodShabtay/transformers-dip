@@ -43,7 +43,7 @@ def skip_hybrid(
     last_scale = n_scales - 1
     num_heads = 4
     emb_factor = 1
-    conv_blocks_ends = 3
+    conv_blocks_ends = 2
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     model = nn.Sequential()
@@ -97,7 +97,7 @@ def skip_hybrid(
             deeper.add(bn(num_channels_down[i]))
             deeper.add(act(act_fun))
         else:
-            # deeper.add(nn.MaxPool1d(4, stride=4))
+            deeper.add(nn.MaxPool1d(4, stride=4))
             deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i], num_heads))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
@@ -130,7 +130,7 @@ def skip_hybrid(
                 conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
-            # deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
+            deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
             model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
                                             emb_factor * num_channels_up[i], num_heads))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
@@ -169,7 +169,6 @@ def skip_hybrid(
 
 def transformer_block(input_channels, embedding_size, num_heads):
     t_block = nn.Sequential()
-
     t_block.add(Rearrange('b c l -> b l c'))
     if input_channels != embedding_size:
         t_block.add(nn.Linear(input_channels, embedding_size))
