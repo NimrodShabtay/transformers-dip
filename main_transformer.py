@@ -29,8 +29,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
-        'scales': 5,
+        'filters': 16,
+        'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer'
     }
@@ -41,7 +41,6 @@ d = params_dict[EXP]
 
 if __name__ == '__main__':
     fname = 'data/denoising/F16_GT.png'
-    # fname = 'data/denoising/icon-256x256.png'
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_noisy_np = pil_to_np(img_noisy_pil)
@@ -56,7 +55,7 @@ if __name__ == '__main__':
     elif fname in ['data/denoising/F16_GT.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
+        img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
@@ -108,6 +107,7 @@ if __name__ == '__main__':
         #               num_scales=5,
         #               upsample_mode='bilinear').type(dtype)
         # print(net)
+        torch.save(net, 'model.pth')
         summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
@@ -180,4 +180,3 @@ if __name__ == '__main__':
     optimize(OPTIMIZER, p, closure, LR, num_iter)
 
     out_np = torch_to_np(net(net_input))
-    # q = plot_image_grid([np.clip(out_np, 0, 1), img_np], factor=13)
