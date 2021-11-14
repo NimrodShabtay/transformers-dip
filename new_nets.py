@@ -7,7 +7,7 @@ import logging
 
 # TODO: Refactor function signature + docstring
 
-norm1d = nn.InstanceNorm1d   #nn.BatchNorm1d
+norm1d = [nn.InstanceNorm1d, nn.BatchNorm1d][1]
 logger = logging.getLogger('exp_logger')
 
 

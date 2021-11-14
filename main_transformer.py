@@ -1,7 +1,7 @@
 from __future__ import print_function
-# from vit_model import VerboseExecution#
+# from vit_model import VerboseExecution
 # import matplotlib.pyplot as plt
-from torchinfo import summary
+# from torchinfo import summary
 # from torchviz import make_dot
 # from graphviz import Source
 
