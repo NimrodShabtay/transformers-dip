@@ -178,7 +178,7 @@ def transformer_block(input_channels, embedding_size, num_heads, transformer_act
     t_block.add(Rearrange('b c l -> b l c'))
     if input_channels != embedding_size:
         t_block.add(nn.Linear(input_channels, embedding_size))
-    t_block.add(TransformerEncoderBlock(embedding_size, num_heads=num_heads))
+    # t_block.add(TransformerEncoderBlock(embedding_size, num_heads=num_heads))
     t_block.add(nn.TransformerEncoderLayer(embedding_size,
                                            num_heads,
                                            ff_expansion * embedding_size,
