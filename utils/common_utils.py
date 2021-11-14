@@ -274,5 +274,24 @@ def plot_denoising_results(
         img_pil.save(os.path.join(save_dir, '{}_best.png'.format(filename)))
 
 
+def plot_training_curves(loss_vals, eval_vals, save_dir):
+    assert len(loss_vals) == len(eval_vals), "loss and eval lists are not in the same length"
+    fig, ax = plt.subplots(1, 2, figsize=(10, 10))
+    stpes_vec = [i for i in range(len(loss_vals))]
+    ax[0].plot(stpes_vec, loss_vals)
+    ax[0].set_xlabel('steps')
+    ax[0].set_ylabel('mse')
+    ax[0].set_title('MSE')
+
+    ax[1].plot(stpes_vec, eval_vals)
+    ax[1].set_xlabel('steps')
+    ax[1].set_ylabel('dB')
+    ax[1].set_title('PSNR-GT')
+
+    plt.savefig(os.path.join(save_dir, 'training_curves.png'))
+    plt.close(fig)
+
+
+
 
 

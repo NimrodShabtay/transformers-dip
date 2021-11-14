@@ -140,12 +140,13 @@ if __name__ == '__main__':
     last_net = None
     psnr_noisy_last = 0
     i = 0
+    psnr_gt_vals = []
+    mse_vals = []
 
     def closure():
-        global i, out_avg, psnr_noisy_last, last_net, net_input
+        global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
-
         out = net(net_input)
         # make_dot(out.mean(), params=dict(net.named_parameters())).render("attached", format='png')
 
@@ -156,12 +157,14 @@ if __name__ == '__main__':
             out_avg = out_avg * exp_weight + out.detach() * (1 - exp_weight)
 
         total_loss = mse(out, img_noisy_torch)
+        mse_vals.append(total_loss.item())
         total_loss.backward()
 
         psnr_noisy = compare_psnr(img_noisy_np, out.detach().cpu().numpy()[0])
         psnr_gt = compare_psnr(img_np, out.detach().cpu().numpy()[0])
         psnr_gt_sm = compare_psnr(img_np, out_avg.detach().cpu().numpy()[0])
 
+        psnr_gt_vals.append(psnr_gt)
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
         if PLOT and (i % show_every == 0):
@@ -193,5 +196,5 @@ if __name__ == '__main__':
 
     p = get_params(OPT_OVER, net, net_input)
     optimize(OPTIMIZER, p, closure, LR, num_iter)
-
+    plot_training_curves(mse_vals, psnr_gt_vals, d['save_dir'])
     out_np = torch_to_np(net(net_input))

@@ -7,7 +7,7 @@ import logging
 
 # TODO: Refactor function signature + docstring
 
-norm1d = nn.InstanceNorm1d  # nn.BatchNorm1d
+norm1d = nn.InstanceNorm1d   #nn.BatchNorm1d
 logger = logging.getLogger('exp_logger')
 
 
@@ -102,7 +102,7 @@ def skip_hybrid(
             deeper.add(bn(num_channels_down[i]))
             deeper.add(act(act_fun))
         else:
-            deeper.add(nn.MaxPool1d(4, stride=4))
+            # deeper.add(nn.MaxPool1d(4, stride=4))
             deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i],
                                          num_heads, transformer_activation))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
@@ -136,7 +136,7 @@ def skip_hybrid(
                 conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
-            deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
+            # deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
             model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
                                             emb_factor * num_channels_up[i], num_heads, transformer_activation))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
