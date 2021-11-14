@@ -276,7 +276,7 @@ def plot_denoising_results(
 
 def plot_training_curves(loss_vals, eval_vals, save_dir):
     assert len(loss_vals) == len(eval_vals), "loss and eval lists are not in the same length"
-    fig, ax = plt.subplots(1, 2, figsize=(10, 10))
+    fig, ax = plt.subplots(2, 1, figsize=(20, 15))
     stpes_vec = [i for i in range(len(loss_vals))]
     ax[0].plot(stpes_vec, loss_vals)
     ax[0].set_xlabel('steps')
