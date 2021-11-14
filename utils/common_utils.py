@@ -269,8 +269,7 @@ def plot_denoising_results(
         current_res_uint8 = (current_res * 255).astype(np.uint8)
         img_pil = Image.fromarray(current_res_uint8)
         draw = ImageDraw.Draw(img_pil)
-        # font = ImageFont.load_default()
-        font = ImageFont.truetype("arial.ttf", 12)
+        font = ImageFont.load_default()
         draw.text((0, 0), 'PSNR: {:.3f}'.format(psnr_gt), (0, 0, 0), font=font)
         img_pil.save('{}_best.png'.format(filename))
 

@@ -6,9 +6,12 @@ from torchinfo import summary
 # from graphviz import Source
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
-
+from datetime import datetime
+import logging
+import sys
 from utils.denoising_utils import *
 from models import *
+
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -18,6 +21,8 @@ imsize = -1
 PLOT = True
 sigma = 25
 sigma_ = sigma / 255.
+
+now = datetime.now()
 
 params_dict = {
     'org': {
@@ -32,14 +37,24 @@ params_dict = {
         'filters': 128,
         'scales': 5,
         'title': 'Transformer ',
-        'filename': 'transformer'
+        'filename': 'transformer',
+        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     }
 }
 
 EXP = 'transformer'
 d = params_dict[EXP]
-
+os.mkdir(d['save_dir'])
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(os.path.join(d['save_dir'], 'log.txt')),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 if __name__ == '__main__':
+    logger = logging.getLogger('exp_logger')
     fname = 'data/denoising/F16_GT.png'
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
@@ -93,7 +108,7 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname == 'data/denoising/F16_GT.png':
-        num_iter = 3000
+        num_iter = 10000
         input_depth = 32
         figsize = 4
         net = get_net(input_depth, d['model'],
@@ -108,12 +123,12 @@ if __name__ == '__main__':
         #               upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
-        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters
     s = sum([np.prod(list(p.size())) for p in net.parameters()])
-    print('Number of params: %d' % s)
+    logger.info('Number of params: %d' % s)
 
     # Loss
     mse = torch.nn.MSELoss().type(dtype)
@@ -150,7 +165,7 @@ if __name__ == '__main__':
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
         if PLOT and (i % show_every == 0):
-            print('Iteration %05d    Loss %f   PSNR_noisy: %f   PSRN_gt: %f PSNR_gt_sm: %f' % (
+            logger.info('Iteration %05d    Loss %f   PSNR_noisy: %f   PSRN_gt: %f PSNR_gt_sm: %f' % (
                 i, total_loss.item(), psnr_noisy, psnr_gt, psnr_gt_sm))
 
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
@@ -161,7 +176,7 @@ if __name__ == '__main__':
         # Backtracking
         if i % show_every == 0:
             if psnr_noisy - psnr_noisy_last < -5:
-                print('Falling back to previous checkpoint.')
+                logger.info('Falling back to previous checkpoint.')
 
                 for new_param, net_param in zip(last_net, net.parameters()):
                     net_param.data.copy_(new_param.cuda())

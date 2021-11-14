@@ -3,11 +3,12 @@ from models.common import *
 
 from einops.layers.torch import Rearrange
 import torch.nn as nn
+import logging
 
 # TODO: Refactor function signature + docstring
-# TODO: Use the patch embedding only once (skip + deeper)
 
 norm1d = nn.InstanceNorm1d  # nn.BatchNorm1d
+logger = logging.getLogger('exp_logger')
 
 
 def skip_hybrid(
@@ -44,8 +45,11 @@ def skip_hybrid(
     num_heads = 4
     emb_factor = 1
     conv_blocks_ends = 2
+    transformer_activation = 'relu'
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
+    logger.info('Num heads: {} conv_block_ends: {} norm: {} transformer activation: {}'.format(
+        num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation))
     model = nn.Sequential()
     model_tmp = model
 
@@ -82,7 +86,8 @@ def skip_hybrid(
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
-                skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i], num_heads))
+                skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i],
+                                           num_heads, transformer_activation))
                 skip.add(norm1d(emb_factor * num_channels_skip[i]))
 
             skip.add(act(act_fun))
@@ -98,12 +103,13 @@ def skip_hybrid(
             deeper.add(act(act_fun))
         else:
             deeper.add(nn.MaxPool1d(4, stride=4))
-            deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i], num_heads))
+            deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i],
+                                         num_heads, transformer_activation))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
             deeper.add(transformer_block(emb_factor * num_channels_down[i],
-                                         emb_factor * num_channels_down[i], num_heads))
+                                         emb_factor * num_channels_down[i], num_heads, transformer_activation))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
@@ -132,7 +138,7 @@ def skip_hybrid(
         else:  # Transformer part
             deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
             model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
-                                            emb_factor * num_channels_up[i], num_heads))
+                                            emb_factor * num_channels_up[i], num_heads, transformer_activation))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
         model_tmp.add(act(act_fun))
@@ -143,7 +149,7 @@ def skip_hybrid(
                 model_tmp.add(bn(num_channels_up[i]))
             else:
                 model_tmp.add(transformer_block(emb_factor * num_channels_up[i],
-                                                emb_factor * num_channels_up[i], num_heads))
+                                                emb_factor * num_channels_up[i], num_heads, transformer_activation))
                 model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
             model_tmp.add(act(act_fun))
@@ -167,13 +173,17 @@ def skip_hybrid(
     return model
 
 
-def transformer_block(input_channels, embedding_size, num_heads):
+def transformer_block(input_channels, embedding_size, num_heads, transformer_act, ff_expansion=4):
     t_block = nn.Sequential()
     t_block.add(Rearrange('b c l -> b l c'))
     if input_channels != embedding_size:
         t_block.add(nn.Linear(input_channels, embedding_size))
     t_block.add(TransformerEncoderBlock(embedding_size, num_heads=num_heads))
-    # t_block.add(nn.TransformerEncoderLayer(embedding_size, num_heads, embedding_size, 0))
+    t_block.add(nn.TransformerEncoderLayer(embedding_size,
+                                           num_heads,
+                                           ff_expansion * embedding_size,
+                                           0,
+                                           activation=transformer_act))
     t_block.add(Rearrange('b l c -> b c l'))
 
     return t_block
