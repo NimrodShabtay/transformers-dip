@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision
-import sys
+import os
 
 from PIL import Image
 from PIL import ImageFont
@@ -243,7 +243,7 @@ def plot_denoising_results(
         img_org, img_noise,
         current_res, current_res_smooth,
         psnr_gt, psnr_gt_smooth,
-        count, title, filename):
+        count, title, filename, save_dir):
 
     global best_psnr_gt
     fig, axes = plt.subplots(2, 2, figsize=(20, 20))
@@ -261,7 +261,7 @@ def plot_denoising_results(
     axes[1][1].axis('off')
 
     plt.suptitle(title)
-    plt.savefig('{}_{}.png'.format(filename, count))
+    plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
     plt.close(fig)
 
     if psnr_gt > best_psnr_gt:
@@ -271,7 +271,7 @@ def plot_denoising_results(
         draw = ImageDraw.Draw(img_pil)
         font = ImageFont.load_default()
         draw.text((0, 0), 'PSNR: {:.3f}'.format(psnr_gt), (0, 0, 0), font=font)
-        img_pil.save('{}_best.png'.format(filename))
+        img_pil.save(os.path.join(save_dir, '{}_best.png'.format(filename)))
 
 
 

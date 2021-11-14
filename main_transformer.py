@@ -171,7 +171,7 @@ if __name__ == '__main__':
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
-                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP)
+                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
 
         # Backtracking
         if i % show_every == 0:
