@@ -46,7 +46,7 @@ EXP = 'transformer'
 d = params_dict[EXP]
 os.mkdir(d['save_dir'])
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(os.path.join(d['save_dir'], 'log.txt')),
