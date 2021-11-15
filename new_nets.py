@@ -160,6 +160,7 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
+        # TODO: fix this after finiding the right configuration
         model.add(Rearrange('b c l -> b l c'))
         model.add(nn.Linear(num_channels_up[0], num_output_channels))
         model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))

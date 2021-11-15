@@ -91,6 +91,7 @@ if __name__ == '__main__':
     OPTIMIZER = 'adam'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
+    logger.info('Optimizer: {} LR: {}'.format(OPTIMIZER, LR))
 
     if fname == 'data/denoising/snail.jpg':
         num_iter = 2400
