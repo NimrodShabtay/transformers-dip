@@ -55,10 +55,10 @@ def skip_hybrid(
 
     input_depth = num_input_channels
     if conv_blocks_ends < 0:
-        model_tmp.add(PatchEmbedding(input_depth, 1, emb_factor * input_depth))
+        model_tmp.add(PatchEmbedding(input_depth, 1, emb_factor * input_depth, img_sz))
 
     for i in range(len(num_channels_down)):
-        last_spatial_dim = img_sz // 2 ** i
+        current_spatial_dim = img_sz // 2 ** i
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
@@ -70,7 +70,7 @@ def skip_hybrid(
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
                         PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
-                                       emb_size=emb_factor * num_channels_down[i]))
+                                       emb_size=emb_factor * num_channels_down[i], img_size=current_spatial_dim))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
@@ -128,7 +128,7 @@ def skip_hybrid(
                 deeper.add(Rearrange('b c l -> b l c'))
                 if emb_factor > 1:  # Is it really necessary?
                     deeper.add(nn.Linear(num_channels_down[i] * emb_factor, num_channels_down[i]))
-                next_spatial_dim = last_spatial_dim // 2
+                next_spatial_dim = current_spatial_dim // 2
                 deeper.add(Rearrange('b (h w) c -> b c (h) (w)', h=next_spatial_dim, w=next_spatial_dim))
             # Conv block up-sample (2 in each dim)
             deeper.add(nn.Upsample(scale_factor=2, mode='bilinear'))
