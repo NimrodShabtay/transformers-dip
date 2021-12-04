@@ -91,7 +91,6 @@ class TransformerEncoderBlock(nn.Sequential):
                  num_heads=8,
                  **kwargs):
         super().__init__(
-            Rearrange('b c d -> b d c'),
             ResidualAdd(nn.Sequential(
                 nn.LayerNorm(emb_size),
                 MultiHeadAttention(emb_size, num_heads=num_heads),
@@ -102,8 +101,7 @@ class TransformerEncoderBlock(nn.Sequential):
                 FeedForwardBlock(
                     emb_size, expansion=forward_expansion, drop_p=forward_drop_p),
                 nn.Dropout(drop_p)
-            )),
-            Rearrange('b d c -> b c d')
+            ))
         )
 
 
