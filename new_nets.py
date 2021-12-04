@@ -1,4 +1,4 @@
-from vit_model import TransformerEncoderBlock, PatchEmbedding, PrintLayer
+from vit_model import PatchEmbedding, PrintLayer
 from models.common import *
 
 from einops.layers.torch import Rearrange
@@ -122,8 +122,8 @@ def skip_hybrid(
             deeper.add(deeper_main)
             k = num_channels_up[i + 1]
 
+        current_channels_count = num_channels_skip[i] + k
         if i <= conv_blocks_ends:
-            current_channels_count = num_channels_skip[i] + k
             if i == conv_blocks_ends:
                 deeper.add(Rearrange('b c l -> b l c'))
                 if emb_factor > 1:  # Is it really necessary?
@@ -137,7 +137,7 @@ def skip_hybrid(
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
             # deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
-            model_tmp.add(transformer_block(emb_factor * (num_channels_skip[i] + k),
+            model_tmp.add(transformer_block(emb_factor * current_channels_count,
                                             emb_factor * num_channels_up[i], num_heads, transformer_activation))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
@@ -161,30 +161,25 @@ def skip_hybrid(
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
         # TODO: fix this after finiding the right configuration
-        model.add(Rearrange('b c l -> b l c'))
-        model.add(nn.Linear(num_channels_up[0], num_output_channels))
-        model.add(TransformerEncoderBlock(num_output_channels, num_heads=num_heads))
-        # model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0))
-        model.add(nn.TransformerEncoderLayer(num_output_channels, num_output_channels, num_output_channels, 0,
-                                             batch_first=True))
-        model.add(Rearrange('b (h w) (c)-> b c (h) (w)', h=img_sz, w=img_sz))
+        NotImplementedError('Level 0 without convs is not implemented')
     if need_sigmoid:
         model.add(nn.Sigmoid())
 
     return model
 
 
-def transformer_block(input_channels, embedding_size, num_heads, transformer_act, ff_expansion=4):
+def transformer_block(input_dims, output_dims, num_heads, transformer_act, ff_expansion=4):
     t_block = nn.Sequential()
+    t_block.add(PrintLayer())
     t_block.add(Rearrange('b c l -> b l c'))
-    if input_channels != embedding_size:
-        t_block.add(nn.Linear(input_channels, embedding_size))
-    # t_block.add(TransformerEncoderBlock(embedding_size, num_heads=num_heads))
-    t_block.add(nn.TransformerEncoderLayer(embedding_size,
+    t_block.add(nn.TransformerEncoderLayer(input_dims,
                                            num_heads,
-                                           ff_expansion * embedding_size,
+                                           ff_expansion * input_dims,
                                            0,
                                            activation=transformer_act))
+    if input_dims != output_dims:
+        t_block.add(nn.Linear(input_dims, output_dims))
     t_block.add(Rearrange('b l c -> b c l'))
+    t_block.add(PrintLayer())
 
     return t_block
