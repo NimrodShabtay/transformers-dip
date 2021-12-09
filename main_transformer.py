@@ -1,7 +1,7 @@
 from __future__ import print_function
 # from vit_model import VerboseExecution
 # import matplotlib.pyplot as plt
-from torchinfo import summary
+# from torchinfo import summary
 # from torchviz import make_dot
 # from graphviz import Source
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
         #               upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
-        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters
@@ -160,6 +160,7 @@ if __name__ == '__main__':
         total_loss = mse(out, img_noisy_torch)
         mse_vals.append(total_loss.item())
         total_loss.backward()
+        plot_grad_flow(net.named_parameters())
 
         psnr_noisy = compare_psnr(img_noisy_np, out.detach().cpu().numpy()[0])
         psnr_gt = compare_psnr(img_np, out.detach().cpu().numpy()[0])
