@@ -34,8 +34,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 16,
-        'scales': 4,
+        'filters': 128,
+        'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     reg_noise_std = 1. / 30.  # set to 1./20. for sigma=50
     LR = 0.01
 
-    OPTIMIZER = 'adamW'  # 'LBFGS'
+    OPTIMIZER = 'adam'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
     logger.info('Optimizer: {} LR: {}'.format(OPTIMIZER, LR))
