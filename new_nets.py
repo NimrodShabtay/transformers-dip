@@ -170,7 +170,7 @@ def skip_hybrid(
 
 def transformer_block(input_dims, output_dims, num_heads, transformer_act, ff_expansion=4):
     t_block = nn.Sequential()
-    t_block.add(PrintLayer())
+#     t_block.add(PrintLayer())
     t_block.add(Rearrange('b c l -> b l c'))
     t_block.add(nn.TransformerEncoderLayer(input_dims,
                                            num_heads,
@@ -180,6 +180,6 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, ff_ex
     if input_dims != output_dims:
         t_block.add(nn.Linear(input_dims, output_dims))
     t_block.add(Rearrange('b l c -> b c l'))
-    t_block.add(PrintLayer())
+#     t_block.add(PrintLayer())
 
     return t_block
