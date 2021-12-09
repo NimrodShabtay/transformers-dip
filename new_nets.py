@@ -160,7 +160,7 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        # TODO: fix this after finiding the right configuration
+        # TODO: fix this after finding the right configuration
         NotImplementedError('Level 0 without convs is not implemented')
     if need_sigmoid:
         model.add(nn.Sigmoid())
