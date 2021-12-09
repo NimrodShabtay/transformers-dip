@@ -232,6 +232,15 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
             optimizer.zero_grad()
             closure()
             optimizer.step()
+
+    elif optimizer_type == 'adamW':
+        print('Starting optimization with ADAM-W')
+        optimizer = torch.optim.AdamW(parameters, lr=LR)
+
+        for j in range(num_iter):
+            optimizer.zero_grad()
+            closure()
+            optimizer.step()
     else:
         assert False
 

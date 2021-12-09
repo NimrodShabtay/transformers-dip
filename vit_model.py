@@ -21,7 +21,7 @@ class PatchEmbedding(nn.Module):
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d')
         )
-        self.positions = nn.Parameter(torch.randn((img_size // patch_size) ** 2, emb_size))
+        self.positions = nn.Parameter(torch.randn(emb_size, (img_size // patch_size) ** 2))
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
