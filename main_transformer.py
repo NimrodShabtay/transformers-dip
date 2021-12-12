@@ -167,8 +167,7 @@ if __name__ == '__main__':
         psnr_gt = compare_psnr(img_np, out.detach().cpu().numpy()[0])
         psnr_gt_sm = compare_psnr(img_np, out_avg.detach().cpu().numpy()[0])
 
-        psnr_gt_vals.append(psnr_gt)
-        psnr_noisy_gt_vals.append(psnr_noisy)
+
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
         if PLOT and (i % show_every == 0):
@@ -177,9 +176,6 @@ if __name__ == '__main__':
 
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
-            plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
-                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
-            plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
         # Backtracking
         if i % show_every == 0:
@@ -189,12 +185,22 @@ if __name__ == '__main__':
                 for new_param, net_param in zip(last_net, net.parameters()):
                     net_param.data.copy_(new_param.cuda())
 
+                psnr_gt = psnr_gt_vals[-1]
+                psnr_noisy = psnr_noisy_gt_vals[-1]
+
                 return total_loss * 0
             else:
                 last_net = [x.detach().cpu() for x in net.parameters()]
                 psnr_noisy_last = psnr_noisy
 
         i += 1
+        psnr_gt_vals.append(psnr_gt)
+        psnr_noisy_gt_vals.append(psnr_noisy)
+        if i % show_every == 0:
+            plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
+                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
+            plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
+
 
         return total_loss
 
