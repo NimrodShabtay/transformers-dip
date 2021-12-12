@@ -141,13 +141,15 @@ if __name__ == '__main__':
     out_avg = None
     last_net = None
     psnr_noisy_last = 0
+    psnr_gt_last = 0
     i = 0
     psnr_gt_vals = []
     mse_vals = []
     psnr_noisy_gt_vals = []
 
     def closure():
-        global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals
+        global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals, psnr_gt_last
+
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
         out = net(net_input)
@@ -186,17 +188,15 @@ if __name__ == '__main__':
                 for new_param, net_param in zip(last_net, net.parameters()):
                     net_param.data.copy_(new_param.cuda())
 
-                psnr_gt = psnr_gt_vals[-1]
-                psnr_noisy = psnr_noisy_gt_vals[-1]
-
                 return total_loss * 0
             else:
                 last_net = [x.detach().cpu() for x in net.parameters()]
                 psnr_noisy_last = psnr_noisy
+                psnr_gt_last = psnr_gt
 
         # Logging values for plots
-        psnr_gt_vals.append(psnr_gt)
-        psnr_noisy_gt_vals.append(psnr_noisy)
+        psnr_gt_vals.append(psnr_gt_last)
+        psnr_noisy_gt_vals.append(psnr_noisy_last)
         if i % show_every == 0:
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
                                    out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
