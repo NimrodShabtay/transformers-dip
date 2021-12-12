@@ -51,7 +51,7 @@ def skip_hybrid(
 
     logger.info('Num heads: {} conv_block_ends: {} norm: {} transformer activation: {}'.format(
         num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation))
-    logger.info('Add Weight Decay')
+    logger.info('Add Weight Decay + Cosine LR decay')
     model = nn.Sequential()
     model_tmp = model
 
