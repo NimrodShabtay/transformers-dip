@@ -55,7 +55,7 @@ logging.basicConfig(
 )
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
-    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][1]
+    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_noisy_np = pil_to_np(img_noisy_pil)
