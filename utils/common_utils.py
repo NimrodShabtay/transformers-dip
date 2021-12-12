@@ -270,7 +270,7 @@ def plot_denoising_results(
     axes[1][1].axis('off')
 
     plt.suptitle(title)
-    plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
+    # plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
     plt.close(fig)
 
     if psnr_gt > best_psnr_gt:

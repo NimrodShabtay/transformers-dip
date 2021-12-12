@@ -44,12 +44,13 @@ def skip_hybrid(
     last_scale = n_scales - 1
     num_heads = 4
     emb_factor = 1
-    conv_blocks_ends = 2
+    conv_blocks_ends = 1
     transformer_activation = 'relu'
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info('Num heads: {} conv_block_ends: {} norm: {} transformer activation: {}'.format(
         num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation))
+    logger.info('Fix Patch embedding weights')
     model = nn.Sequential()
     model_tmp = model
 
