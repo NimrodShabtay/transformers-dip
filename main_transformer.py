@@ -87,11 +87,12 @@ if __name__ == '__main__':
 
     reg_noise_std = 1. / 30.  # set to 1./20. for sigma=50
     LR = 0.01
+    WD = 0.3 # like in ViT, default for Pytorch 0.01
 
     OPTIMIZER = 'adam'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
-    logger.info('Optimizer: {} LR: {}'.format(OPTIMIZER, LR))
+    logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
 
     if fname == 'data/denoising/snail.jpg':
         num_iter = 2400
@@ -207,6 +208,6 @@ if __name__ == '__main__':
 
 
     p = get_params(OPT_OVER, net, net_input)
-    optimize(OPTIMIZER, p, closure, LR, num_iter)
+    optimize(OPTIMIZER, p, closure, LR, num_iter, WD)
     plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
     out_np = torch_to_np(net(net_input))

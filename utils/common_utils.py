@@ -199,7 +199,7 @@ def torch_to_np(img_var):
     return img_var.detach().cpu().numpy()[0]
 
 
-def optimize(optimizer_type, parameters, closure, LR, num_iter):
+def optimize(optimizer_type, parameters, closure, LR, num_iter, WD):
     """Runs optimization loop.
 
     Args:
@@ -235,7 +235,7 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
 
     elif optimizer_type == 'adamW':
         print('Starting optimization with ADAM-W')
-        optimizer = torch.optim.AdamW(parameters, lr=LR)
+        optimizer = torch.optim.AdamW(parameters, lr=LR, weight_decay=WD)
 
         for j in range(num_iter):
             optimizer.zero_grad()
