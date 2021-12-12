@@ -55,7 +55,7 @@ logging.basicConfig(
 )
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
-    fname = 'data/denoising/F16_GT.png'
+    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][1]
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_noisy_np = pil_to_np(img_noisy_pil)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         if PLOT:
             plot_image_grid([img_np], 4, 5)
 
-    elif fname in ['data/denoising/F16_GT.png']:
+    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         # img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
@@ -87,9 +87,9 @@ if __name__ == '__main__':
 
     reg_noise_std = 1. / 30.  # set to 1./20. for sigma=50
     LR = 0.01
-    WD = 0.3 # like in ViT, default for Pytorch 0.01
+    WD = 0.3  # like in ViT, default for Pytorch 0.01
 
-    OPTIMIZER = 'adam'  # 'LBFGS'
+    OPTIMIZER = 'adamW'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
     logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
         net = net.type(dtype)
 
-    elif fname == 'data/denoising/F16_GT.png':
+    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         num_iter = 10000
         input_depth = 32
         figsize = 4
