@@ -143,6 +143,7 @@ if __name__ == '__main__':
     i = 0
     psnr_gt_vals = []
     mse_vals = []
+    psnr_noisy_gt_vals = []
 
     def closure():
         global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals
@@ -167,6 +168,7 @@ if __name__ == '__main__':
         psnr_gt_sm = compare_psnr(img_np, out_avg.detach().cpu().numpy()[0])
 
         psnr_gt_vals.append(psnr_gt)
+        psnr_noisy_gt_vals.append(psnr_noisy)
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
         if PLOT and (i % show_every == 0):
@@ -177,6 +179,7 @@ if __name__ == '__main__':
             out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
                                    out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
+            plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
         # Backtracking
         if i % show_every == 0:
@@ -198,5 +201,5 @@ if __name__ == '__main__':
 
     p = get_params(OPT_OVER, net, net_input)
     optimize(OPTIMIZER, p, closure, LR, num_iter)
-    plot_training_curves(mse_vals, psnr_gt_vals, d['save_dir'])
+    plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
     out_np = torch_to_np(net(net_input))
