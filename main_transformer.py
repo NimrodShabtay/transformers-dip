@@ -110,7 +110,7 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
-        num_iter = 10000
+        num_iter = 20000
         input_depth = 32
         figsize = 4
         net = get_net(input_depth, d['model'],
