@@ -193,7 +193,7 @@ if __name__ == '__main__':
                 last_net = [x.detach().cpu() for x in net.parameters()]
                 psnr_noisy_last = psnr_noisy
 
-        i += 1
+        # Logging values for plots
         psnr_gt_vals.append(psnr_gt)
         psnr_noisy_gt_vals.append(psnr_noisy)
         if i % show_every == 0:
@@ -201,6 +201,7 @@ if __name__ == '__main__':
                                    out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
             plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
+        i += 1
 
         return total_loss
 
