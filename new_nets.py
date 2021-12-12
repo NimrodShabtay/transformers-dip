@@ -4,6 +4,7 @@ from models.common import *
 from einops.layers.torch import Rearrange
 import torch.nn as nn
 import logging
+from collections import OrderedDict
 
 # TODO: Refactor function signature + docstring
 
@@ -104,13 +105,17 @@ def skip_hybrid(
             deeper.add(act(act_fun))
         else:
             # deeper.add(nn.MaxPool1d(4, stride=4))
-            deeper.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_down[i],
-                                         num_heads, transformer_activation))
+            deeper.add(
+                transformer_block(emb_factor * input_depth,
+                                  emb_factor * num_channels_down[i],
+                                  num_heads, transformer_activation))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
-            deeper.add(transformer_block(emb_factor * num_channels_down[i],
-                                         emb_factor * num_channels_down[i], num_heads, transformer_activation))
+            deeper.add(
+                transformer_block(emb_factor * num_channels_down[i],
+                                  emb_factor * num_channels_down[i],
+                                  num_heads, transformer_activation))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
@@ -138,8 +143,10 @@ def skip_hybrid(
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
             # deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
-            model_tmp.add(transformer_block(emb_factor * current_channels_count,
-                                            emb_factor * num_channels_up[i], num_heads, transformer_activation))
+            model_tmp.add(
+                transformer_block(emb_factor * current_channels_count,
+                                  emb_factor * num_channels_up[i],
+                                  num_heads, transformer_activation))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
         model_tmp.add(act(act_fun))
@@ -149,8 +156,10 @@ def skip_hybrid(
                 model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
                 model_tmp.add(bn(num_channels_up[i]))
             else:
-                model_tmp.add(transformer_block(emb_factor * num_channels_up[i],
-                                                emb_factor * num_channels_up[i], num_heads, transformer_activation))
+                model_tmp.add(
+                    transformer_block(emb_factor * num_channels_up[i],
+                                      emb_factor * num_channels_up[i],
+                                      num_heads, transformer_activation))
                 model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
             model_tmp.add(act(act_fun))
@@ -170,17 +179,29 @@ def skip_hybrid(
 
 
 def transformer_block(input_dims, output_dims, num_heads, transformer_act, ff_expansion=4):
-    t_block = nn.Sequential()
-#     t_block.add(PrintLayer())
-    t_block.add(Rearrange('b c l -> b l c'))
-    t_block.add(nn.TransformerEncoderLayer(input_dims,
-                                           num_heads,
-                                           ff_expansion * input_dims,
-                                           0,
-                                           activation=transformer_act))
+    # t_block = nn.Sequential(
+    d = OrderedDict(
+        [
+            ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
+            ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims, 0,
+                                                           activation=transformer_act)),
+        ]
+    )
     if input_dims != output_dims:
-        t_block.add(nn.Linear(input_dims, output_dims))
-    t_block.add(Rearrange('b l c -> b c l'))
-#     t_block.add(PrintLayer())
+        d.update({'transformer_fix_dim': nn.Linear(input_dims, output_dims)})
+
+    d.update({'transformer_rearrange_after': Rearrange('b l c -> b c l')})
+
+    t_block = nn.Sequential(d)
+    #     t_block.add(Rearrange('b c l -> b l c'))
+    #     t_block.add(nn.TransformerEncoderLayer(input_dims,
+    #                                            num_heads,
+    #                                            ff_expansion * input_dims,
+    #                                            0,
+    #                                            activation=transformer_act))
+    #     if input_dims != output_dims:
+    #         t_block.add(nn.Linear(input_dims, output_dims))
+    #     t_block.add(Rearrange('b l c -> b c l'))
+    # #     t_block.add(PrintLayer())
 
     return t_block
