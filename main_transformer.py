@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
         # Backtracking
         if i % show_every == 0:
-            if psnr_noisy - psnr_noisy_last < -2.5:
+            if psnr_noisy - psnr_noisy_last < -2:
                 logger.info('Falling back to previous checkpoint.')
 
                 for new_param, net_param in zip(last_net, net.parameters()):
