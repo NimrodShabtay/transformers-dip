@@ -199,7 +199,7 @@ def torch_to_np(img_var):
     return img_var.detach().cpu().numpy()[0]
 
 
-def optimize(optimizer_type, parameters, closure, LR, num_iter):
+def optimize(optimizer_type, parameters, closure, LR, num_iter, WD):
     """Runs optimization loop.
 
     Args:
@@ -232,6 +232,16 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
             optimizer.zero_grad()
             closure()
             optimizer.step()
+
+    elif optimizer_type == 'adamW':
+        print('Starting optimization with ADAM-W')
+        optimizer = torch.optim.AdamW(parameters, lr=LR, weight_decay=WD)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, num_iter)
+        for j in range(num_iter):
+            optimizer.zero_grad()
+            closure()
+            optimizer.step()
+            scheduler.step()
     else:
         assert False
 
@@ -261,7 +271,7 @@ def plot_denoising_results(
     axes[1][1].axis('off')
 
     plt.suptitle(title)
-    plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
+    # plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
     plt.close(fig)
 
     if psnr_gt > best_psnr_gt:
@@ -274,9 +284,10 @@ def plot_denoising_results(
         img_pil.save(os.path.join(save_dir, '{}_best.png'.format(filename)))
 
 
-def plot_training_curves(loss_vals, eval_vals, save_dir):
-    assert len(loss_vals) == len(eval_vals), "loss and eval lists are not in the same length"
-    fig, ax = plt.subplots(2, 1, figsize=(20, 15))
+def plot_training_curves(loss_vals, eval_vals, noise_eval_vals, save_dir):
+    assert len(loss_vals) == len(eval_vals), "loss {} and eval {} lists are not in the same length".format(
+        len(loss_vals), len(eval_vals))
+    fig, ax = plt.subplots(3, 1, figsize=(20, 20))
     stpes_vec = [i for i in range(len(loss_vals))]
     ax[0].plot(stpes_vec, loss_vals)
     ax[0].set_xlabel('steps')
@@ -288,10 +299,42 @@ def plot_training_curves(loss_vals, eval_vals, save_dir):
     ax[1].set_ylabel('dB')
     ax[1].set_title('PSNR-GT')
 
+    ax[2].plot(stpes_vec, noise_eval_vals)
+    ax[2].set_xlabel('steps')
+    ax[2].set_ylabel('dB')
+    ax[2].set_title('PSNR-Noisy')
+
     plt.savefig(os.path.join(save_dir, 'training_curves.png'))
     plt.close(fig)
 
 
+def plot_grad_flow(named_parameters):
+    '''Plots the gradients flowing through different layers in the net during training.
+    Can be used for checking for possible gradient vanishing / exploding problems.
 
-
-
+    Usage: Plug this function in Trainer class after loss.backwards() as
+    "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow'''
+    ave_grads = []
+    max_grads = []
+    layers = []
+    for n, p in named_parameters:
+        if p.requires_grad and "bias" not in n:
+            layers.append(n)
+            try:
+                ave_grads.append(p.grad.abs().mean().cpu())
+                max_grads.append(p.grad.abs().max().cpu())
+            except:
+                print(n, p)
+    plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
+    plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
+    plt.hlines(0, 0, len(ave_grads) + 1, lw=2, color="k")
+    plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
+    plt.xlim(left=0, right=len(ave_grads))
+    plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
+    plt.xlabel("Layers")
+    plt.ylabel("average gradient")
+    plt.title("Gradient flow")
+    plt.grid(True)
+    plt.legend([plt.Line2D([0], [0], color="c", lw=4),
+                plt.Line2D([0], [0], color="b", lw=4),
+                plt.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])

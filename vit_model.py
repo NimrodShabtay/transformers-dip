@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from timm.models.layers import trunc_normal_
 
 from torch import nn
 from torch import Tensor
@@ -12,7 +13,7 @@ PATCH_SIZE = 2
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768):
+    def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size: int = 512):
         self.patch_size = patch_size
         patch_dim = in_channels * patch_size * patch_size
         super().__init__()
@@ -21,10 +22,15 @@ class PatchEmbedding(nn.Module):
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d')
         )
+        self.positions = nn.Parameter(torch.randn(emb_size, (img_size // patch_size) ** 2))
+        trunc_normal_(self.positions)
+        for p_ in self.projection.parameters():
+            trunc_normal_(p_)
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
-        x = self.projection(x)
+        x = self.projection(x)#.detach()
+        x += self.positions
         return x
 
 

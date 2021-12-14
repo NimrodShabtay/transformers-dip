@@ -55,7 +55,7 @@ logging.basicConfig(
 )
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
-    fname = 'data/denoising/F16_GT.png'
+    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_noisy_np = pil_to_np(img_noisy_pil)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         if PLOT:
             plot_image_grid([img_np], 4, 5)
 
-    elif fname in ['data/denoising/F16_GT.png']:
+    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         # img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
@@ -87,11 +87,12 @@ if __name__ == '__main__':
 
     reg_noise_std = 1. / 30.  # set to 1./20. for sigma=50
     LR = 0.01
+    WD = 0.3  # like in ViT, default for Pytorch 0.01
 
-    OPTIMIZER = 'adam'  # 'LBFGS'
+    OPTIMIZER = 'adamW'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
-    logger.info('Optimizer: {} LR: {}'.format(OPTIMIZER, LR))
+    logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
 
     if fname == 'data/denoising/snail.jpg':
         num_iter = 2400
@@ -108,8 +109,8 @@ if __name__ == '__main__':
 
         net = net.type(dtype)
 
-    elif fname == 'data/denoising/F16_GT.png':
-        num_iter = 10000
+    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
+        num_iter = 20000
         input_depth = 32
         figsize = 4
         net = get_net(input_depth, d['model'],
@@ -140,12 +141,15 @@ if __name__ == '__main__':
     out_avg = None
     last_net = None
     psnr_noisy_last = 0
+    psnr_gt_last = 0
     i = 0
     psnr_gt_vals = []
     mse_vals = []
+    psnr_noisy_gt_vals = []
 
     def closure():
-        global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals
+        global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals, psnr_gt_last
+
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
         out = net(net_input)
@@ -160,12 +164,15 @@ if __name__ == '__main__':
         total_loss = mse(out, img_noisy_torch)
         mse_vals.append(total_loss.item())
         total_loss.backward()
+        # plot_grad_flow(net.named_parameters())
 
         psnr_noisy = compare_psnr(img_noisy_np, out.detach().cpu().numpy()[0])
         psnr_gt = compare_psnr(img_np, out.detach().cpu().numpy()[0])
         psnr_gt_sm = compare_psnr(img_np, out_avg.detach().cpu().numpy()[0])
 
         psnr_gt_vals.append(psnr_gt)
+        psnr_noisy_gt_vals.append(psnr_noisy)
+
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
         if PLOT and (i % show_every == 0):
@@ -176,10 +183,11 @@ if __name__ == '__main__':
             out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
                                    out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
+            plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
         # Backtracking
         if i % show_every == 0:
-            if psnr_noisy - psnr_noisy_last < -5:
+            if psnr_noisy - psnr_noisy_last < -1.5:
                 logger.info('Falling back to previous checkpoint.')
 
                 for new_param, net_param in zip(last_net, net.parameters()):
@@ -189,6 +197,7 @@ if __name__ == '__main__':
             else:
                 last_net = [x.detach().cpu() for x in net.parameters()]
                 psnr_noisy_last = psnr_noisy
+                psnr_gt_last = psnr_gt
 
         i += 1
 
@@ -196,6 +205,6 @@ if __name__ == '__main__':
 
 
     p = get_params(OPT_OVER, net, net_input)
-    optimize(OPTIMIZER, p, closure, LR, num_iter)
-    plot_training_curves(mse_vals, psnr_gt_vals, d['save_dir'])
+    optimize(OPTIMIZER, p, closure, LR, num_iter, WD)
+    plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
     out_np = torch_to_np(net(net_input))
