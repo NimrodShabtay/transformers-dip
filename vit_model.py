@@ -18,7 +18,8 @@ class PatchEmbedding(nn.Module):
         patch_dim = in_channels * patch_size * patch_size
         super().__init__()
         self.projection = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
+            # Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
+            nn.Unfold(kernel_size=patch_size),
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d')
         )
