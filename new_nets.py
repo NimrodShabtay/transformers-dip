@@ -47,10 +47,14 @@ def skip_hybrid(
     emb_factor = 1
     conv_blocks_ends = -1
     transformer_activation = 'relu'
+    patch_sz = 1
+    dropout_rate = 0.0
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
-    logger.info('Num heads: {} conv_block_ends: {} norm: {} transformer activation: {}'.format(
-        num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation))
+    logger.info(
+        'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {}'.format(
+            num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation, patch_sz, dropout_rate))
+
     logger.info('Add Weight Decay + Cosine LR decay')
     model = nn.Sequential()
     model_tmp = model
