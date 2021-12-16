@@ -117,6 +117,9 @@ if __name__ == '__main__':
                       pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
                       num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+
+        logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
+
         # net_ref = get_net(input_depth, 'skip', pad,
         #               skip_n33d=128,
         #               skip_n33u=128,
