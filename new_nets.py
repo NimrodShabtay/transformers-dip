@@ -45,7 +45,7 @@ def skip_hybrid(
     last_scale = n_scales - 1
     num_heads = 4
     emb_factor = 1
-    conv_blocks_ends = 1
+    conv_blocks_ends = -1
     transformer_activation = 'relu'
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
@@ -170,8 +170,7 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        # TODO: fix this after finding the right configuration
-        NotImplementedError('Level 0 without convs is not implemented')
+        model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation))
     if need_sigmoid:
         model.add(nn.Sigmoid())
 
