@@ -93,7 +93,7 @@ def skip_hybrid(
                 skip.add(bn(num_channels_skip[i]))
             else:
                 skip.add(transformer_block(emb_factor * input_depth, emb_factor * num_channels_skip[i],
-                                           num_heads, transformer_activation))
+                                           num_heads, transformer_activation, dropout_rate))
                 skip.add(norm1d(emb_factor * num_channels_skip[i]))
 
             skip.add(act(act_fun))
@@ -112,14 +112,14 @@ def skip_hybrid(
             deeper.add(
                 transformer_block(emb_factor * input_depth,
                                   emb_factor * num_channels_down[i],
-                                  num_heads, transformer_activation))
+                                  num_heads, transformer_activation, dropout_rate))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
             deeper.add(
                 transformer_block(emb_factor * num_channels_down[i],
                                   emb_factor * num_channels_down[i],
-                                  num_heads, transformer_activation))
+                                  num_heads, transformer_activation, dropout_rate))
             deeper.add(norm1d(emb_factor * num_channels_down[i]))
             deeper.add(act(act_fun))
 
@@ -150,7 +150,7 @@ def skip_hybrid(
             model_tmp.add(
                 transformer_block(emb_factor * current_channels_count,
                                   emb_factor * num_channels_up[i],
-                                  num_heads, transformer_activation))
+                                  num_heads, transformer_activation, dropout_rate))
             model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
         model_tmp.add(act(act_fun))
@@ -163,7 +163,7 @@ def skip_hybrid(
                 model_tmp.add(
                     transformer_block(emb_factor * num_channels_up[i],
                                       emb_factor * num_channels_up[i],
-                                      num_heads, transformer_activation))
+                                      num_heads, transformer_activation, dropout_rate))
                 model_tmp.add(norm1d(emb_factor * num_channels_up[i]))
 
             model_tmp.add(act(act_fun))
@@ -174,7 +174,7 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation))
+        model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation, dropout_rate))
         model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
     if need_sigmoid:
         model.add(nn.Sigmoid())
@@ -182,12 +182,12 @@ def skip_hybrid(
     return model
 
 
-def transformer_block(input_dims, output_dims, num_heads, transformer_act, ff_expansion=4):
+def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4):
     d = OrderedDict(
         [
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
-            ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims, 0,
-                                                           activation=transformer_act)),
+            ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
+                                                           dropout_rate, activation=transformer_act)),
         ]
     )
     if input_dims != output_dims:
