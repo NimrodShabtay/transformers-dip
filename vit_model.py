@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from timm.models.layers import trunc_normal_
@@ -15,15 +16,16 @@ PATCH_SIZE = 2
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size: int = 512):
         self.patch_size = patch_size
-        self.stride = patch_size // 2
+        self.stride = 1  # patch_size // 2
         self.padding = patch_size // 2
         self.dilation = 1
         patch_dim = in_channels * patch_size * patch_size
-        L = int(((img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) -1) / self.stride + 1) ** 2)
+        L = int(np.floor(
+            (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
         self.projection = nn.Sequential(
             # Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
-            nn.Unfold(kernel_size=self.patch_size, stride=self.stride, padding=self.padding),
+            nn.Unfold(kernel_size=self.patch_size, stride=self.stride, padding=self.padding, dilation=self.dilation),
             Rearrange('b c d -> b d c'),
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d')

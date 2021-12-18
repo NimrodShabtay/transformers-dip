@@ -57,7 +57,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
     fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
     if fname == 'data/denoising/snail.jpg':
-        img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
+        img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=8)
         img_noisy_np = pil_to_np(img_noisy_pil)
 
         # As we don't have ground truth
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
-        img_pil = crop_image(get_image(fname, imsize)[0], d=8)
+        img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_pil = img_pil.resize((128, 128), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
