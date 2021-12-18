@@ -48,7 +48,7 @@ def skip_hybrid(
     conv_blocks_ends = -1
     transformer_activation = 'relu'
     patch_sz = 3
-    dropout_rate = 0.0
+    dropout_rate = 0.8
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
@@ -61,7 +61,7 @@ def skip_hybrid(
 
     input_depth = num_input_channels
     if conv_blocks_ends < 0:
-        model_tmp.add(PatchEmbedding(input_depth, 1, emb_factor * input_depth, img_sz))
+        model_tmp.add(PatchEmbedding(input_depth, patch_sz, emb_factor * input_depth, img_sz))
 
     for i in range(len(num_channels_down)):
         current_spatial_dim = img_sz // 2 ** i
@@ -75,7 +75,7 @@ def skip_hybrid(
                 if i == conv_blocks_ends + 1 and conv_blocks_ends != -1:
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
-                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=1,
+                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
                                        emb_size=emb_factor * num_channels_down[i], img_size=current_spatial_dim))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
