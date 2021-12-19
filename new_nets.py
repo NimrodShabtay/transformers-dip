@@ -47,7 +47,7 @@ def skip_hybrid(
     emb_factor = 1
     conv_blocks_ends = -1
     transformer_activation = 'relu'
-    patch_sz = 7
+    patch_sz = 3
     dropout_rate = 0.8
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
@@ -188,7 +188,8 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
             # ('transformer_debug_0', PrintLayer()),
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
             ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
-                                                           dropout_rate, activation=transformer_act)),
+                                                           dropout_rate, activation=transformer_act,
+                                                           batch_first=True)),
         ]
     )
     if input_dims != output_dims:
