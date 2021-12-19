@@ -188,8 +188,7 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
             # ('transformer_debug_0', PrintLayer()),
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
             ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
-                                                           dropout_rate, activation=transformer_act,
-                                                           batch_first=True)),
+                                                           dropout_rate, activation=transformer_act)),
         ]
     )
     if input_dims != output_dims:
