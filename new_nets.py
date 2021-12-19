@@ -175,7 +175,9 @@ def skip_hybrid(
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
         model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation, dropout_rate))
-        model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
+        model.add(Rearrange('b c (h w) -> b c (h) (w)', h=img_sz // 2, w=img_sz // 2))
+        model.add(nn.Upsample(scale_factor=2, mode='bilinear'))
+        # model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
     if need_sigmoid:
         model.add(nn.Sigmoid())
 

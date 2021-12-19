@@ -16,8 +16,8 @@ PATCH_SIZE = 2
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, emb_size: int = 768, img_size: int = 512):
         self.patch_size = patch_size
-        self.stride = 1  # patch_size // 2
-        self.padding = patch_size // 2
+        self.stride = 2  # patch_size // 2
+        self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
         patch_dim = in_channels * patch_size * patch_size
         L = int(np.floor(
