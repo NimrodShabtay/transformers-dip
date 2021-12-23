@@ -200,3 +200,19 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
 
     t_block = nn.Sequential(d)
     return t_block
+
+
+def upsampling_block(dim, scale_factor):
+    block = nn.Sequential()
+    block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
+    block.add(nn.Upsample(scale_factor=scale_factor, mode='bilinear'))
+    block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim * scale_factor, h=dim * scale_factor))
+    return block
+
+
+def downsampling_block(dim, scale_factor):
+    block = nn.Sequential()
+    block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
+    block.add(nn.MaxPool2d(scale_factor))
+    block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
+    return block
