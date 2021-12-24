@@ -49,19 +49,20 @@ def skip_hybrid(
     transformer_activation = 'relu'
     patch_sz = 3
     dropout_rate = 0.0
+    stride = 1
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
-        'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {}'.format(
-            num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation, patch_sz, dropout_rate))
+        'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
+            num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
-    logger.info('Stride 2 + upsample2d after last block')
+    logger.info('2D max pooling + bilinear upsampling in all levels')
     model = nn.Sequential()
     model_tmp = model
 
     input_depth = num_input_channels
     if conv_blocks_ends < 0:
-        model_tmp.add(PatchEmbedding(input_depth, patch_sz, emb_factor * input_depth, img_sz))
+        model_tmp.add(PatchEmbedding(input_depth, patch_sz, stride, emb_factor * input_depth, img_sz))
 
     for i in range(len(num_channels_down)):
         current_spatial_dim = img_sz // 2 ** i
@@ -108,7 +109,14 @@ def skip_hybrid(
             deeper.add(bn(num_channels_down[i]))
             deeper.add(act(act_fun))
         else:
-            # deeper.add(nn.MaxPool1d(4, stride=4))
+            # If the the first downsampling is done in the patch embedding layer
+            # skip it in the last level for both upsampling and downsampling
+            if stride > 1:
+                if i > 0:
+                    deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2))
+            else:
+                deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2))
+
             deeper.add(
                 transformer_block(emb_factor * input_depth,
                                   emb_factor * num_channels_down[i],
@@ -146,7 +154,14 @@ def skip_hybrid(
                 conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(bn(num_channels_up[i]))
         else:  # Transformer part
-            # deeper.add(nn.Upsample(scale_factor=4, mode='linear'))
+            # If the the first downsampling is done in the patch embedding layer
+            # skip it in the last level for both upsampling and downsampling
+            if stride > 1:
+                if i > 0:
+                    deeper.add(upsampling_block(dim=current_spatial_dim // 2, scale_factor=2))
+            else:
+                deeper.add(upsampling_block(dim=current_spatial_dim // 2, scale_factor=2))
+
             model_tmp.add(
                 transformer_block(emb_factor * current_channels_count,
                                   emb_factor * num_channels_up[i],
@@ -174,10 +189,11 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        model.add(Rearrange('b c (h w) -> b c (h) (w)', h=img_sz // 2, w=img_sz // 2))
-        model.add(nn.Upsample(scale_factor=2, mode='bilinear'))
+        if stride > 1:
+            model.add(upsampling_block(dim=img_sz // 2, scale_factor=2))
         model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation, dropout_rate))
         model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
+
     if need_sigmoid:
         model.add(nn.Sigmoid())
 
@@ -187,7 +203,6 @@ def skip_hybrid(
 def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4):
     d = OrderedDict(
         [
-            # ('transformer_debug_0', PrintLayer()),
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
             ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
                                                            dropout_rate, activation=transformer_act)),
