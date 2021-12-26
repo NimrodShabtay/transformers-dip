@@ -32,8 +32,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
-        'scales': 5,
+        'filters': 64,
+        'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
