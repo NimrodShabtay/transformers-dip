@@ -1,9 +1,7 @@
 from __future__ import print_function
 # from vit_model import VerboseExecution
 # import matplotlib.pyplot as plt
-# from torchinfo import summary
-# from torchviz import make_dot
-# from graphviz import Source
+from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
@@ -34,8 +32,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
-        'scales': 5,
+        'filters': 64,
+        'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -57,7 +55,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
     fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
     if fname == 'data/denoising/snail.jpg':
-        img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=32)
+        img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=8)
         img_noisy_np = pil_to_np(img_noisy_pil)
 
         # As we don't have ground truth
@@ -70,7 +68,7 @@ if __name__ == '__main__':
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((32, 32), resample=Image.BICUBIC)
+        # img_pil = img_pil.resize((128, 128), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
@@ -117,15 +115,18 @@ if __name__ == '__main__':
                       pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
                       num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+
+        logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
+
         # net_ref = get_net(input_depth, 'skip', pad,
-        #               skip_n33d=128,
-        #               skip_n33u=128,
+        #               skip_n33d=64,
+        #               skip_n33u=64,
         #               skip_n11=4,
-        #               num_scales=5,
+        #               num_scales=4,
         #               upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
-        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters
