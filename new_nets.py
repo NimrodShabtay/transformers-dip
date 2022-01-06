@@ -47,9 +47,9 @@ def skip_hybrid(
     emb_factor = 1
     conv_blocks_ends = -1
     transformer_activation = 'relu'
-    patch_sz = 1
+    patch_sz = 3
     dropout_rate = 0.0
-    stride = 1
+    stride = 2
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
