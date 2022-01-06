@@ -236,12 +236,12 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter, WD):
     elif optimizer_type == 'adamW':
         print('Starting optimization with ADAM-W')
         optimizer = torch.optim.AdamW(parameters, lr=LR, weight_decay=WD)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, num_iter)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, num_iter)
         for j in range(num_iter):
             optimizer.zero_grad()
             closure()
             optimizer.step()
-            scheduler.step()
+            # scheduler.step()
     else:
         assert False
 
