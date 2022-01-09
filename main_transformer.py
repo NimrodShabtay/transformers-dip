@@ -1,7 +1,5 @@
 from __future__ import print_function
-# from vit_model import VerboseExecution
-# import matplotlib.pyplot as plt
-from torchinfo import summary
+# from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
@@ -32,8 +30,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 64,
-        'scales': 4,
+        'filters': 32,
+        'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -108,12 +106,12 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
-        num_iter = 20000
+        num_iter = 3000
         input_depth = 32
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
-                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=4,
+                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
                       num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
@@ -126,7 +124,7 @@ if __name__ == '__main__':
         #               upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
-        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters

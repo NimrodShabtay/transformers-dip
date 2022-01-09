@@ -43,7 +43,7 @@ def skip_hybrid(
         filter_size_up = [filter_size_up] * n_scales
 
     last_scale = n_scales - 1
-    num_heads = 4
+    num_heads = 8
     emb_factor = 1
     conv_blocks_ends = -1
     transformer_activation = 'relu'
