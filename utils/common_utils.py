@@ -1,11 +1,9 @@
 import torch
-import torch.nn as nn
 import torchvision
 import os
 
-from PIL import Image
-from PIL import ImageFont
-from PIL import ImageDraw
+from PIL import Image, ImageFont, ImageDraw
+from skimage.metrics import structural_similarity as ssim
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -25,6 +23,7 @@ def crop_image(img, d=32):
 
     img_cropped = img.crop(bbox)
     return img_cropped
+
 
 def get_params(opt_over, net, net_input, downsampler=None):
     '''Returns parameters that we want to optimize over.
@@ -52,12 +51,14 @@ def get_params(opt_over, net, net_input, downsampler=None):
             
     return params
 
+
 def get_image_grid(images_np, nrow=8):
     '''Creates a grid from a list of images by concatenating them.'''
     images_torch = [torch.from_numpy(x) for x in images_np]
     torch_grid = torchvision.utils.make_grid(images_torch, nrow)
     
     return torch_grid.numpy()
+
 
 def plot_image_grid(images_np, count, nrow =8, factor=1, interpolation='lanczos',):
     """Draws images in a grid
@@ -95,6 +96,7 @@ def load(path):
     img = Image.open(path)
     return img
 
+
 def get_image(path, imsize=-1):
     """Load an image and resize to a cpecific size. 
 
@@ -118,7 +120,6 @@ def get_image(path, imsize=-1):
     return img, img_np
 
 
-
 def fill_noise(x, noise_type):
     """Fills tensor `x` with noise of type `noise_type`."""
     if noise_type == 'u':
@@ -127,6 +128,7 @@ def fill_noise(x, noise_type):
         x.normal_() 
     else:
         assert False
+
 
 def get_noise(input_depth, method, spatial_size, noise_type='u', var=1./10):
     """Returns a pytorch.Tensor of size (1 x `input_depth` x `spatial_size[0]` x `spatial_size[1]`) 
@@ -156,6 +158,7 @@ def get_noise(input_depth, method, spatial_size, noise_type='u', var=1./10):
         
     return net_input
 
+
 def pil_to_np(img_PIL):
     '''Converts image in PIL format to np.array.
     
@@ -169,6 +172,7 @@ def pil_to_np(img_PIL):
         ar = ar[None, ...]
 
     return ar.astype(np.float32) / 255.
+
 
 def np_to_pil(img_np): 
     '''Converts image in np.array format to PIL image.
@@ -184,12 +188,14 @@ def np_to_pil(img_np):
 
     return Image.fromarray(ar)
 
+
 def np_to_torch(img_np):
     '''Converts image in numpy.array to torch.Tensor.
 
     From C x W x H [0..1] to  C x W x H [0..1]
     '''
     return torch.from_numpy(img_np)[None, :]
+
 
 def torch_to_np(img_var):
     '''Converts an image in torch.Tensor format to np.array.
@@ -276,11 +282,13 @@ def plot_denoising_results(
 
     if psnr_gt > best_psnr_gt:
         best_psnr_gt = psnr_gt
+        ssim_res = ssim(img_org, current_res, multichannel=True)
         current_res_uint8 = (current_res * 255).astype(np.uint8)
         img_pil = Image.fromarray(current_res_uint8)
         draw = ImageDraw.Draw(img_pil)
         font = ImageFont.load_default()
         draw.text((0, 0), 'PSNR: {:.3f}'.format(psnr_gt), (0, 0, 0), font=font)
+        draw.text((0, 10), 'SSIM: {:.3f}'.format(ssim_res), (0, 0, 0), font=font)
         img_pil.save(os.path.join(save_dir, '{}_best.png'.format(filename)))
 
 
