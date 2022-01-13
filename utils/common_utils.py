@@ -282,7 +282,7 @@ def plot_denoising_results(
 
     if psnr_gt > best_psnr_gt:
         best_psnr_gt = psnr_gt
-        ssim_res = ssim(img_org, current_res, multichannel=True)
+        ssim_res = ssim((img_org / 255).astype(np.float32), current_res, multichannel=True)
         current_res_uint8 = (current_res * 255).astype(np.uint8)
         img_pil = Image.fromarray(current_res_uint8)
         draw = ImageDraw.Draw(img_pil)
