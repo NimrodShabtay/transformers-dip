@@ -109,10 +109,10 @@ if __name__ == '__main__':
         num_iter = 3000
         input_depth = 32
         figsize = 4
-        # net = get_net(input_depth, d['model'],
-        #               pad, upsample_mode='linear',
-        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        net = get_net(input_depth, d['model'],
+                      pad, upsample_mode='linear',
+                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
