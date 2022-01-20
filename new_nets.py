@@ -56,7 +56,7 @@ def skip_hybrid(
         'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
             num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
-    logger.info('2D max pooling + bilinear upsampling in all levels')
+    logger.info('Mask self attention')
     model = nn.Sequential()
     model_tmp = model
 
