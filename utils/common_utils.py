@@ -347,3 +347,16 @@ def plot_grad_flow(named_parameters):
     plt.legend([plt.Line2D([0], [0], color="c", lw=4),
                 plt.Line2D([0], [0], color="b", lw=4),
                 plt.Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+
+
+curr_iter = 0
+
+
+def get_current_iter_num():
+    global curr_iter
+    return curr_iter
+
+
+def set_current_iter_num(val):
+    global curr_iter
+    curr_iter = val

@@ -193,7 +193,7 @@ def skip_hybrid(
         if stride > 1:
             model.add(upsampling_block(dim=img_sz // 2, scale_factor=2))
         model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation,
-                                    dropout_rate))
+                                    dropout_rate, ))
         model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
 
     if need_sigmoid:
@@ -211,7 +211,7 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
             #                                                dropout_rate, activation=transformer_act)),
             ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
                                                               dropout_rate, activation=transformer_act,
-                                                              src_mask_=None, batch_first=True)),
+                                                              batch_first=True)),
         ]
     )
     if input_dims != output_dims:

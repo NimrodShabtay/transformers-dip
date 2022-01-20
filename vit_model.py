@@ -1,12 +1,14 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from timm.models.layers import trunc_normal_
+# from timm.models.layers import trunc_normal_
 
 from torch import nn
 from torch import Tensor
 from einops import rearrange
 from einops.layers.torch import Rearrange
+
+from utils.common_utils import get_current_iter_num
 
 BATCH_SIZE = 1
 IMG_DIM = 32
@@ -152,27 +154,31 @@ class PrintLayer(nn.Module):
         return x
 
 
-def src_mask(sz):
+def src_mask(sz, p=0):
     device_ = 'cuda' if torch.cuda.is_available() else 'cpu'
-    mask = 1 - (torch.diag(torch.ones(sz))).transpose(0, 1)
+    mask = 1 - (torch.diag(torch.from_numpy(np.random.binomial(1, 1 - p, size=sz)))).transpose(0, 1)
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
     return mask.to(device_)
 
 
 class MaskedTransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu",
-                 layer_norm_eps=1e-5, batch_first=False,
-                 device=None, dtype=None, src_mask_=None):
+                 layer_norm_eps=1e-5, batch_first=False, device=None, dtype=None):
         super(MaskedTransformerEncoderLayer, self).__init__()
         self.trans_enc_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation,
                                                           layer_norm_eps, batch_first, device, dtype)
-        self.src_mask = src_mask_
+
+        self.src_mask = None
 
     def forward(self, src):
-        if self.src_mask is None:
-            self.src_mask = src_mask(src.shape[1])
-        # print('src mask: {}'.format(self.src_mask.shape))
-        # print('inside: {}'.format(src.shape))
+        curr_iter = get_current_iter_num()
+        if curr_iter < 300:
+            p = 0
+        elif 300 <= curr_iter < 1000:
+            p = 0.5
+        elif curr_iter >= 1000:
+            p = 1
+        self.src_mask = src_mask(src.shape[1], 1)
         src_ = self.trans_enc_layer.forward(src, self.src_mask)
         return src_
 
