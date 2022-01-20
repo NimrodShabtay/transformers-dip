@@ -1,4 +1,4 @@
-from vit_model import PatchEmbedding, PrintLayer
+from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, src_mask
 from models.common import *
 
 from einops.layers.torch import Rearrange
@@ -68,6 +68,7 @@ def skip_hybrid(
         current_spatial_dim = img_sz // 2 ** i
         deeper = nn.Sequential()
         skip = nn.Sequential()
+        # current_src_mask = src_mask(sz=(current_spatial_dim // 2) **2)
 
         if num_channels_skip[i] != 0:
             if i <= conv_blocks_ends:
@@ -191,7 +192,8 @@ def skip_hybrid(
     else:
         if stride > 1:
             model.add(upsampling_block(dim=img_sz // 2, scale_factor=2))
-        model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation, dropout_rate))
+        model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation,
+                                    dropout_rate))
         model.add(Rearrange('b c (w h) -> b c w h', w=img_sz, h=img_sz))
 
     if need_sigmoid:
@@ -204,8 +206,12 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
     d = OrderedDict(
         [
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
-            ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
-                                                           dropout_rate, activation=transformer_act)),
+            # ('Debug', PrintLayer()),
+            # ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
+            #                                                dropout_rate, activation=transformer_act)),
+            ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
+                                                              dropout_rate, activation=transformer_act,
+                                                              src_mask_=None, batch_first=True)),
         ]
     )
     if input_dims != output_dims:

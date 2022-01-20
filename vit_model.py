@@ -151,3 +151,28 @@ class PrintLayer(nn.Module):
         print(x.shape)
         return x
 
+
+def src_mask(sz):
+    device_ = 'cuda' if torch.cuda.is_available() else 'cpu'
+    mask = 1 - (torch.diag(torch.ones(sz))).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask.to(device_)
+
+
+class MaskedTransformerEncoderLayer(nn.Module):
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu",
+                 layer_norm_eps=1e-5, batch_first=False,
+                 device=None, dtype=None, src_mask_=None):
+        super(MaskedTransformerEncoderLayer, self).__init__()
+        self.trans_enc_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation,
+                                                          layer_norm_eps, batch_first, device, dtype)
+        self.src_mask = src_mask_
+
+    def forward(self, src):
+        if self.src_mask is None:
+            self.src_mask = src_mask(src.shape[1])
+        # print('src mask: {}'.format(self.src_mask.shape))
+        # print('inside: {}'.format(src.shape))
+        src_ = self.trans_enc_layer.forward(src, self.src_mask)
+        return src_
+
