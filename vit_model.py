@@ -19,7 +19,7 @@ class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, stride: int = 1,
                  emb_size: int = 768, img_size: int = 512):
         self.patch_size = patch_size
-        self.stride = stride  # patch_size // 2
+        self.stride = stride
         self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
         patch_dim = in_channels * patch_size * patch_size
@@ -33,15 +33,14 @@ class PatchEmbedding(nn.Module):
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
         )
-        # self.positions = nn.Parameter(torch.randn(emb_size, (img_size // patch_size) ** 2))
         self.positions = nn.Parameter(torch.randn(emb_size, self.L))
         # trunc_normal_(self.positions)
         # for p_ in self.projection.parameters():
         #     trunc_normal_(p_)
 
     def forward(self, x: Tensor) -> Tensor:
-        b, c, h, w = x.shape
-        x = self.projection(x)#.detach()
+        # b, c, h, w = x.shape
+        x = self.projection(x)
         x += self.positions
         return x
 
@@ -167,16 +166,18 @@ class MaskedTransformerEncoderLayer(nn.Module):
         super(MaskedTransformerEncoderLayer, self).__init__()
         self.trans_enc_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation,
                                                           layer_norm_eps, batch_first, device, dtype)
+        self.th1 = 500
+        self.th2 = 1200
 
         self.src_mask = None
 
     def forward(self, src):
         curr_iter = get_current_iter_num()
-        if curr_iter < 300:
+        if curr_iter < self.th1:
             p = 0
-        elif 300 <= curr_iter < 1000:
+        elif self.th1 <= curr_iter < self.th2:
             p = 0.5
-        elif curr_iter >= 1000:
+        elif curr_iter >= self.th2:
             p = 1
         self.src_mask = src_mask(src.shape[1], p)
         src_ = self.trans_enc_layer.forward(src, self.src_mask)
