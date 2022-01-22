@@ -1,5 +1,5 @@
 from __future__ import print_function
-# from torchinfo import summary
+from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
@@ -31,8 +31,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 32,
-        'scales': 5,
+        'filters': 64,
+        'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((64, 64), resample=Image.BICUBIC)
+        img_pil = img_pil.resize((128, 128), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         num_iter = 3000
-        input_depth = 32
+        input_depth = 4
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',

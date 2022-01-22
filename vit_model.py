@@ -23,7 +23,7 @@ class PatchEmbedding(nn.Module):
         self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
         patch_dim = in_channels * patch_size * patch_size
-        L = int(np.floor(
+        self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
         self.projection = nn.Sequential(
@@ -31,16 +31,16 @@ class PatchEmbedding(nn.Module):
             nn.Unfold(kernel_size=self.patch_size, stride=self.stride, padding=self.padding, dilation=self.dilation),
             Rearrange('b c d -> b d c'),
             nn.Linear(patch_dim, emb_size),
-            Rearrange('b d c -> b c d')
+            Rearrange('b d c -> b c d'),
         )
         # self.positions = nn.Parameter(torch.randn(emb_size, (img_size // patch_size) ** 2))
-        self.positions = nn.Parameter(torch.randn(emb_size, L))
+        self.positions = nn.Parameter(torch.randn(emb_size, self.L))
         # trunc_normal_(self.positions)
         # for p_ in self.projection.parameters():
         #     trunc_normal_(p_)
 
     def forward(self, x: Tensor) -> Tensor:
-        # b, c, h, w = x.shape
+        b, c, h, w = x.shape
         x = self.projection(x)#.detach()
         x += self.positions
         return x
@@ -94,7 +94,7 @@ class FeedForwardBlock(nn.Sequential):
     def __init__(self, emb_size: int, expansion: int = 4, drop_p: float = 0.):
         super().__init__(
             nn.Linear(emb_size, expansion * emb_size),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Dropout(drop_p),
             nn.Linear(expansion * emb_size, emb_size),
         )
@@ -178,7 +178,7 @@ class MaskedTransformerEncoderLayer(nn.Module):
             p = 0.5
         elif curr_iter >= 1000:
             p = 1
-        self.src_mask = src_mask(src.shape[1], 1)
+        self.src_mask = src_mask(src.shape[1], p)
         src_ = self.trans_enc_layer.forward(src, self.src_mask)
         return src_
 
