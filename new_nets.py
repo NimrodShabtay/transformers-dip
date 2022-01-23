@@ -1,4 +1,4 @@
-from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, TransformerEncoderBlock
+from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, TransformerEncoderBlock, NormLayer
 from models.common import *
 
 from einops.layers.torch import Rearrange
@@ -195,6 +195,8 @@ def skip_hybrid(
         # model.add(Rearrange('b (w h) (c p1 p2) -> b c (h p1) (w p2)', w=org_spatial_dim,
         #                     h=org_spatial_dim, p1=patch_sz, p2=patch_sz))
         model.add(nn.Fold((img_sz, img_sz), kernel_size=patch_sz, stride=stride, padding=(patch_sz - 1) // 2))
+        model.add(NormLayer(output_size=(img_sz, img_sz), kernel_size=patch_sz, stride=stride,
+                            padding=(patch_sz - 1) // 2))
 
     if need_sigmoid:
         model.add(nn.Sigmoid())
@@ -237,3 +239,4 @@ def downsampling_block(dim, scale_factor):
     block.add(nn.MaxPool2d(scale_factor))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
     return block
+

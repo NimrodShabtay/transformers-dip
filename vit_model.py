@@ -183,3 +183,20 @@ class MaskedTransformerEncoderLayer(nn.Module):
         src_ = self.trans_enc_layer.forward(src, self.src_mask)
         return src_
 
+
+class NormLayer(nn.Module):
+    def __init__(self, output_size, kernel_size, padding, stride):
+        super(NormLayer, self).__init__()
+        self.fold_params = dict(kernel_size=kernel_size, dilation=1, padding=padding, stride=stride)
+        self.output_size = output_size
+        self.norm_mask = self.generate_norm_mask()
+
+    def generate_norm_mask(self):
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        norm_mask = nn.Fold(output_size=self.output_size, **self.fold_params) \
+            (nn.Unfold(**self.fold_params)(torch.ones(1, 3, *self.output_size)))
+        return norm_mask.to(device)
+
+    def forward(self, src):
+        norm_src = src / self.norm_mask
+        return norm_src
