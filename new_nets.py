@@ -48,7 +48,8 @@ def skip_hybrid(
     transformer_activation = 'relu'
     patch_sz = 8
     dropout_rate = 0.0
-    stride = patch_sz // 2
+    stride = patch_sz
+    final_pad = 0 if stride == patch_sz else (patch_sz - 1) // 2
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
@@ -194,9 +195,10 @@ def skip_hybrid(
         model.add(Rearrange('b l c -> b c l'))
         # model.add(Rearrange('b (w h) (c p1 p2) -> b c (h p1) (w p2)', w=org_spatial_dim,
         #                     h=org_spatial_dim, p1=patch_sz, p2=patch_sz))
-        model.add(nn.Fold((img_sz, img_sz), kernel_size=patch_sz, stride=stride, padding=(patch_sz - 1) // 2))
+
+        model.add(nn.Fold((img_sz, img_sz), kernel_size=patch_sz, stride=stride, padding=final_pad))
         model.add(NormLayer(output_size=(img_sz, img_sz), kernel_size=patch_sz, stride=stride,
-                            padding=(patch_sz - 1) // 2))
+                            padding=final_pad))
 
     if need_sigmoid:
         model.add(nn.Sigmoid())

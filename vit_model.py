@@ -195,7 +195,7 @@ class NormLayer(nn.Module):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         norm_mask = nn.Fold(output_size=self.output_size, **self.fold_params) \
             (nn.Unfold(**self.fold_params)(torch.ones(1, 3, *self.output_size)))
-        norm_mask[norm_mask == 0] = 1
+        assert (norm_mask != 0).all()
         return norm_mask.to(device)
 
     def forward(self, src):
