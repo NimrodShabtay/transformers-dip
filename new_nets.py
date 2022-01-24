@@ -190,7 +190,7 @@ def skip_hybrid(
         # model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation,
         #                             dropout_rate, ))
         model.add(Rearrange('b c l -> b l c'))
-        model.add(nn.Linear(input_depth, patch_sz * patch_sz * num_output_channels))
+        model.add(nn.Linear(num_channels_down[0], patch_sz * patch_sz * num_output_channels))
         model.add(Rearrange('b l c -> b c l'))
         # model.add(Rearrange('b (w h) (c p1 p2) -> b c (h p1) (w p2)', w=org_spatial_dim,
         #                     h=org_spatial_dim, p1=patch_sz, p2=patch_sz))
