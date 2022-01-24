@@ -166,8 +166,8 @@ class MaskedTransformerEncoderLayer(nn.Module):
         super(MaskedTransformerEncoderLayer, self).__init__()
         self.trans_enc_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation,
                                                           layer_norm_eps, batch_first, device, dtype)
-        self.th1 = 500
-        self.th2 = 1200
+        self.th1 = 1000
+        self.th2 = 2000
 
         self.src_mask = None
 
