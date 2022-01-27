@@ -31,10 +31,18 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 64,
-        'scales': 5,
+        'filters': 128,
+        'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
+        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
+    },
+    'SwinIR': {
+        'model': 'SwinIR',
+        'filters': 60,
+        'scales': 4,
+        'title': 'SwinIR ',
+        'filename': 'swin_ir',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     }
 }
@@ -68,8 +76,8 @@ if __name__ == '__main__':
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         # Add synthetic noise
+        imsize = (128, 128)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((128, 128), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
@@ -112,19 +120,19 @@ if __name__ == '__main__':
         num_iter = 3000
         input_depth = 4
         figsize = 4
-        net = get_net(input_depth, d['model'],
-                      pad, upsample_mode='linear',
-                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        # net = get_net(input_depth, d['model'],
+        #               pad, upsample_mode='linear',
+        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        # net_ref = get_net(input_depth, 'skip', pad,
-        #               skip_n33d=128,
-        #               skip_n33u=128,
-        #               skip_n11=4,
-        #               num_scales=5,
-        #               upsample_mode='bilinear').type(dtype)
+        net = get_net(input_depth, 'skip', pad,
+                      skip_n33d=128,
+                      skip_n33u=128,
+                      skip_n11=4,
+                      num_scales=5,
+                      upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))

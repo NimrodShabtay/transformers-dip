@@ -48,7 +48,7 @@ def skip_hybrid(
     transformer_activation = 'relu'
     patch_sz = 8
     dropout_rate = 0.0
-    stride = patch_sz
+    stride = patch_sz // 2
     final_pad = 0 if stride == patch_sz else (patch_sz - 1) // 2
     assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
@@ -97,8 +97,9 @@ def skip_hybrid(
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
-                skip.add(transformer_block(input_depth, num_channels_skip[i],
-                                           num_heads, transformer_activation, dropout_rate))
+                skip.add(Rearrange('b c l -> b l c'))
+                skip.add(nn.Linear(num_channels_down[i], num_channels_skip[i]))
+                skip.add(Rearrange('b l c -> b c l'))
                 skip.add(norm1d(num_channels_skip[i]))
 
             skip.add(act(act_fun))
