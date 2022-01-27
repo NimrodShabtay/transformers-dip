@@ -1,11 +1,12 @@
 from __future__ import print_function
-# from torchinfo import summary
+from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
 import logging
 import sys
 from utils.denoising_utils import *
+from utils.common_utils import set_current_iter_num
 from models import *
 
 
@@ -30,7 +31,7 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 32,
+        'filters': 64,
         'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
@@ -49,6 +50,8 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+
+
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
     fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
@@ -107,7 +110,7 @@ if __name__ == '__main__':
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         num_iter = 3000
-        input_depth = 32
+        input_depth = 4
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
@@ -146,6 +149,7 @@ if __name__ == '__main__':
     mse_vals = []
     psnr_noisy_gt_vals = []
 
+
     def closure():
         global i, out_avg, psnr_noisy_last, last_net, net_input, psnr_gt_vals, mse_vals, psnr_gt_last
 
@@ -174,6 +178,7 @@ if __name__ == '__main__':
 
         # Note that we do not have GT for the "snail" example
         # So 'PSRN_gt', 'PSNR_gt_sm' make no sense
+        set_current_iter_num(i)
         if PLOT and (i % show_every == 0):
             logger.info('Iteration %05d    Loss %f   PSNR_noisy: %f   PSRN_gt: %f PSNR_gt_sm: %f' % (
                 i, total_loss.item(), psnr_noisy, psnr_gt, psnr_gt_sm))
