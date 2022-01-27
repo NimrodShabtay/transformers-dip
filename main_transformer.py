@@ -120,19 +120,19 @@ if __name__ == '__main__':
         num_iter = 3000
         input_depth = 4
         figsize = 4
-        # net = get_net(input_depth, d['model'],
-        #               pad, upsample_mode='linear',
-        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        net = get_net(input_depth, d['model'],
+                      pad, upsample_mode='linear',
+                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        net = get_net(input_depth, 'skip', pad,
-                      skip_n33d=128,
-                      skip_n33u=128,
-                      skip_n11=4,
-                      num_scales=5,
-                      upsample_mode='bilinear').type(dtype)
+        # net = get_net(input_depth, 'skip', pad,
+        #               skip_n33d=128,
+        #               skip_n33u=128,
+        #               skip_n11=4,
+        #               num_scales=5,
+        #               upsample_mode='bilinear').type(dtype)
         # print(net)
         # torch.save(net, 'model.pth')
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
