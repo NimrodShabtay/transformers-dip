@@ -192,9 +192,9 @@ if __name__ == '__main__':
                 i, total_loss.item(), psnr_noisy, psnr_gt, psnr_gt_sm))
 
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
-            out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
+            # out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
-                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
+                                   out_np, psnr_gt, i, EXP, d['save_dir'])
             plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
         # Backtracking

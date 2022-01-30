@@ -1,4 +1,5 @@
 from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, TransformerEncoderBlock, NormLayer
+from timm.models.vision_transformer import Block as TransformerViTBlock
 from models.common import *
 
 from einops.layers.torch import Rearrange

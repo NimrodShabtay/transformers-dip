@@ -257,27 +257,22 @@ best_psnr_gt = -1
 
 def plot_denoising_results(
         img_org, img_noise,
-        current_res, current_res_smooth,
-        psnr_gt, psnr_gt_smooth,
-        count, title, filename, save_dir):
+        current_res,
+        psnr_gt,
+        count, filename, save_dir):
 
     global best_psnr_gt
-    fig, axes = plt.subplots(2, 2, figsize=(20, 20))
-    axes[0][0].imshow(img_org)
-    axes[0][0].set_title('Original Image')
-    axes[0][0].axis('off')
-    axes[0][1].imshow(img_noise)
-    axes[0][1].set_title('Noisy Image')
-    axes[0][1].axis('off')
-    axes[1][0].imshow(current_res)
-    axes[1][0].set_title('Current Result (#{}) - PSNR {}'.format(count, psnr_gt))
-    axes[1][0].axis('off')
-    axes[1][1].imshow(current_res_smooth)
-    axes[1][1].set_title('Current Smooth(#{}) - PSNR {}'.format(count, psnr_gt_smooth))
-    axes[1][1].axis('off')
-
-    plt.suptitle(title)
-    # plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 20))
+    axes[0].imshow(img_org)
+    axes[0].set_title('Original Image')
+    axes[0].axis('off')
+    axes[1].imshow(img_noise)
+    axes[1].set_title('Noisy Image')
+    axes[1].axis('off')
+    axes[2].imshow(current_res)
+    axes[2].set_title('Current Result (#{})\n PSNR {:2.3f}'.format(count, psnr_gt))
+    axes[2].axis('off')
+    plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
     plt.close(fig)
 
     if psnr_gt > best_psnr_gt:
