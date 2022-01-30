@@ -370,7 +370,7 @@ def get_save_dir():
 def attention_debug_func(attention_map, debug_name):
     b, num_heads, t1, t2 = attention_map.shape
     plot_limit = num_heads // 2
-    fig, ax = plt.subplots(2, plot_limit, figsize=(20, 20))
+    fig, ax = plt.subplots(2, plot_limit, figsize=(20, 10))
     for attn_ind in range(num_heads):
         current_map = attention_map[0, attn_ind]
         current_ax = ax[attn_ind // plot_limit][attn_ind % plot_limit]
@@ -381,7 +381,7 @@ def attention_debug_func(attention_map, debug_name):
         fig.colorbar(im, ax=current_ax, fraction=0.046, pad=0.04)
         current_ax.set_title('Head #{0}\n mean: {1:2.3f} std: {2:2.3f}'.format(attn_ind, mean.detach(), std.detach()))
 
-    plt.subplots_adjust(hspace=0., wspace=0.3)
+    plt.tight_layout()
     plt.savefig(os.path.join(get_save_dir(), '{}_iter{}.png'.format(debug_name, get_current_iter_num())))
     plt.close(fig)
 
