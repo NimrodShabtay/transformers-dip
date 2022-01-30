@@ -46,18 +46,19 @@ class PatchEmbedding(nn.Module):
 
 
 class PatchUnEmbedding(nn.Module):
-    def __init__(self, patch_size: int = PATCH_SIZE, stride: int = 1, out_size: int = 512):
+    def __init__(self, emb_size, patch_size: int = PATCH_SIZE, stride: int = 1, out_size: int = 512):
         self.patch_size = patch_size
         self.stride = stride
         self.padding = 0 if stride == patch_size else int((patch_size - 1) / 2)
         self.dilation = 1
         self.out_size = out_size
+        self.emb_size = emb_size
         super().__init__()
 
         self.fold = \
             nn.Fold((self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride, padding=self.padding)
         self.norm = NormLayer(output_size=(self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride,
-                              padding=self.padding)
+                              padding=self.padding, in_channels=self.emb_size)
 
     def forward(self, x):
         x = self.fold(x)
@@ -205,16 +206,17 @@ class MaskedTransformerEncoderLayer(nn.Module):
 
 
 class NormLayer(nn.Module):
-    def __init__(self, output_size, kernel_size, padding, stride):
+    def __init__(self, output_size, kernel_size, padding, stride, in_channels):
         super(NormLayer, self).__init__()
         self.fold_params = dict(kernel_size=kernel_size, dilation=1, padding=padding, stride=stride)
         self.output_size = output_size
+        self.in_channels = in_channels
         self.norm_mask = self.generate_norm_mask()
 
     def generate_norm_mask(self):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         norm_mask = nn.Fold(output_size=self.output_size, **self.fold_params) \
-            (nn.Unfold(**self.fold_params)(torch.ones(1, 3, *self.output_size)))
+            (nn.Unfold(**self.fold_params)(torch.ones(1, self.in_channels, *self.output_size)))
         assert (norm_mask != 0).all()
         return norm_mask.to(device)
 

@@ -68,6 +68,7 @@ def skip_hybrid(
         org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
 
     current_spatial_dim = org_spatial_dim
+    j = 0
     for i in range(len(num_channels_down)):
         deeper = nn.Sequential()
         skip = nn.Sequential()
@@ -78,9 +79,12 @@ def skip_hybrid(
             else:
                 if i == transformer_blocks_start:
                     # Finish with conv blocks, project to 1D for transformer blocks
-                    model_tmp.add(
-                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz, stride=stride,
-                                       emb_size=num_channels_down[i], img_size=current_spatial_dim // 2))
+                    patch_emb_layer = PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
+                                                     stride=stride, emb_size=num_channels_down[i],
+                                                     img_size=current_spatial_dim // 2)
+                    org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
+                    j = 0
+                    model_tmp.add(patch_emb_layer)
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
@@ -92,7 +96,7 @@ def skip_hybrid(
             model_tmp.add(norm1d(channels_))
 
         if num_channels_skip[i] != 0:
-            if i <= transformer_blocks_start:
+            if i < transformer_blocks_start:
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
@@ -103,7 +107,7 @@ def skip_hybrid(
 
             skip.add(act(act_fun))
 
-        if i <= transformer_blocks_start:
+        if i < transformer_blocks_start:
             deeper.add(conv(input_depth, num_channels_down[i], filter_size_down[i], 2, bias=need_bias, pad=pad,
                             downsample_mode=downsample_mode[i]))
             deeper.add(bn(num_channels_down[i]))
@@ -115,7 +119,8 @@ def skip_hybrid(
         else:
             # If the the first downsampling is done in the patch embedding layer
             # skip it in the last level for both upsampling and downsampling
-            if i > 0:
+            if i > 0 and i <= n_scales - 1:
+                print(i)
                 deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2))
 
             deeper.add(
@@ -145,9 +150,11 @@ def skip_hybrid(
         if i <= transformer_blocks_start:
             if i == transformer_blocks_start:
                 next_spatial_dim = current_spatial_dim // 2
-                deeper.add(PatchUnEmbedding(patch_size=patch_sz, stride=stride, out_size=next_spatial_dim))
+                deeper.add(PatchUnEmbedding(emb_size=current_channels_count,
+                                            patch_size=patch_sz, stride=stride, out_size=next_spatial_dim))
 
             deeper.add(nn.Upsample(scale_factor=2, mode='bilinear'))
+            model_tmp.add(PrintLayer())
             model_tmp.add(
                 conv(current_channels_count, num_channels_up[i], filter_size_up[i], 1, bias=need_bias, pad=pad))
             model_tmp.add(bn(num_channels_up[i]))
@@ -182,15 +189,16 @@ def skip_hybrid(
 
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
-        current_spatial_dim = org_spatial_dim // 2 ** i
+        current_spatial_dim = org_spatial_dim // 2 ** j
+        j += 1
 
-    if transformer_blocks_start >= 0:
+    if transformer_blocks_start > 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
         model.add(Rearrange('b c l -> b l c'))
         model.add(nn.Linear(num_channels_down[0], patch_sz * patch_sz * num_output_channels))
         model.add(Rearrange('b l c -> b c l'))
-        model.add(PatchUnEmbedding(patch_size=patch_sz, stride=stride, out_size=img_sz))
+        model.add(PatchUnEmbedding(emb_size=num_output_channels, patch_size=patch_sz, stride=stride, out_size=img_sz))
 
     if need_sigmoid:
         model.add(nn.Sigmoid())
@@ -221,6 +229,7 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
 
 def upsampling_block(dim, scale_factor):
     block = nn.Sequential()
+    block.add(PrintLayer())
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
     block.add(nn.Upsample(scale_factor=scale_factor, mode='bilinear'))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim * scale_factor, h=dim * scale_factor))
@@ -229,7 +238,10 @@ def upsampling_block(dim, scale_factor):
 
 def downsampling_block(dim, scale_factor):
     block = nn.Sequential()
+    print(dim)
+    block.add(PrintLayer())
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
+    block.add(PrintLayer())
     block.add(nn.MaxPool2d(scale_factor))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
     return block
