@@ -17,8 +17,9 @@ PATCH_SIZE = 2
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, stride: int = 1,
-                 emb_size: int = 768, img_size: int = 512):
+                 emb_size: int = 768, img_size: int = 512, do_project=True):
         self.patch_size = patch_size
+        self.do_project = do_project
         self.stride = stride
         self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
@@ -26,9 +27,9 @@ class PatchEmbedding(nn.Module):
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
+        self.tokenize = nn.Unfold(kernel_size=self.patch_size,
+                                  stride=self.stride, padding=self.padding, dilation=self.dilation),
         self.projection = nn.Sequential(
-            # Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
-            nn.Unfold(kernel_size=self.patch_size, stride=self.stride, padding=self.padding, dilation=self.dilation),
             Rearrange('b c d -> b d c'),
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
@@ -40,7 +41,9 @@ class PatchEmbedding(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
-        x = self.projection(x)
+        x = self.tokenize(x)
+        if self.do_project:
+            x = self.projection(x)
         x += self.positions
         return x
 

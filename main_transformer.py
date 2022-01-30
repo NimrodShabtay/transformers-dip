@@ -31,7 +31,7 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
+        'filters': 1024,  # 8 * 8 * 16
         'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
@@ -47,6 +47,7 @@ params_dict = {
     }
 }
 
+filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
 EXP = 'transformer'
 d = params_dict[EXP]
 os.mkdir(d['save_dir'])
@@ -62,7 +63,7 @@ logging.basicConfig(
 
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
-    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
+    fname = filenames[0]
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=8)
         img_noisy_np = pil_to_np(img_noisy_pil)
@@ -74,7 +75,7 @@ if __name__ == '__main__':
         if PLOT:
             plot_image_grid([img_np], 4, 5)
 
-    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
+    elif fname in filenames:
         # Add synthetic noise
         imsize = (128, 128)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
@@ -116,9 +117,9 @@ if __name__ == '__main__':
 
         net = net.type(dtype)
 
-    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
+    elif fname in filenames:
         num_iter = 3000
-        input_depth = 4
+        input_depth = 16
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',

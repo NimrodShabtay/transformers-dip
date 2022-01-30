@@ -63,7 +63,7 @@ def skip_hybrid(
     input_depth = num_input_channels
     org_spatial_dim = img_sz
     if conv_blocks_ends < 0:
-        patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz)
+        patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz, do_project=True)
         model_tmp.add(patch_emb_layer)
         input_depth = num_channels_down[0]
         org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
@@ -81,7 +81,7 @@ def skip_hybrid(
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
                         PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
-                                       emb_size=num_channels_down[i], img_size=current_spatial_dim))
+                                       emb_size=num_channels_down[i], img_size=current_spatial_dim, do_project=False))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
