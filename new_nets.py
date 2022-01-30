@@ -1,4 +1,4 @@
-from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, TransformerEncoderBlock, NormLayer
+from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, PatchUnEmbedding
 from models.common import *
 
 from einops.layers.torch import Rearrange
@@ -19,7 +19,7 @@ def skip_hybrid(
         filter_size_down=3, filter_size_up=3, filter_skip_size=1,
         need_sigmoid=True, need_bias=True,
         pad='zero', upsample_mode='nearest', downsample_mode='stride', act_fun='LeakyReLU',
-        need1x1_up=False, img_sz=512):
+        need1x1_up=True, img_sz=512):
     """Assembles encoder-decoder with skip connections.
 
     Arguments:
@@ -63,7 +63,7 @@ def skip_hybrid(
     input_depth = num_input_channels
     org_spatial_dim = img_sz
     if conv_blocks_ends < 0:
-        patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz, do_project=True)
+        patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz)
         model_tmp.add(patch_emb_layer)
         input_depth = num_channels_down[0]
         org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
@@ -81,7 +81,7 @@ def skip_hybrid(
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
                         PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
-                                       emb_size=num_channels_down[i], img_size=current_spatial_dim, do_project=False))
+                                       emb_size=num_channels_down[i], img_size=current_spatial_dim))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
@@ -172,14 +172,16 @@ def skip_hybrid(
             if i <= conv_blocks_ends:
                 model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
                 model_tmp.add(bn(num_channels_up[i]))
-            else:
-                model_tmp.add(
-                    transformer_block(num_channels_up[i],
-                                      num_channels_up[i],
-                                      num_heads, transformer_activation, dropout_rate))
-                model_tmp.add(norm1d(num_channels_up[i]))
+                model_tmp.add(act(act_fun))
 
-            model_tmp.add(act(act_fun))
+            else:
+                # model_tmp.add(
+                #     transformer_block(num_channels_up[i],
+                #                       num_channels_up[i],
+                #                       num_heads, transformer_activation, dropout_rate))
+                # model_tmp.add(norm1d(num_channels_up[i]))
+                # model_tmp.add(act(act_fun))
+                pass
 
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
@@ -188,18 +190,10 @@ def skip_hybrid(
     if conv_blocks_ends >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        # model.add(upsampling_block(dim=img_sz // scale_factor, scale_factor=scale_factor))
-        # model.add(transformer_block(num_channels_up[0], num_output_channels, 1, transformer_activation,
-        #                             dropout_rate, ))
         model.add(Rearrange('b c l -> b l c'))
         model.add(nn.Linear(num_channels_down[0], patch_sz * patch_sz * num_output_channels))
         model.add(Rearrange('b l c -> b c l'))
-        # model.add(Rearrange('b (w h) (c p1 p2) -> b c (h p1) (w p2)', w=org_spatial_dim,
-        #                     h=org_spatial_dim, p1=patch_sz, p2=patch_sz))
-
-        model.add(nn.Fold((img_sz, img_sz), kernel_size=patch_sz, stride=stride, padding=final_pad))
-        model.add(NormLayer(output_size=(img_sz, img_sz), kernel_size=patch_sz, stride=stride,
-                            padding=final_pad))
+        model.add(PatchUnEmbedding(patch_size=patch_sz, stride=stride, out_size=img_sz))
 
     if need_sigmoid:
         model.add(nn.Sigmoid())

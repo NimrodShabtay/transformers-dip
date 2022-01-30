@@ -17,9 +17,8 @@ PATCH_SIZE = 2
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, stride: int = 1,
-                 emb_size: int = 768, img_size: int = 512, do_project=True):
+                 emb_size: int = 768, img_size: int = 512):
         self.patch_size = patch_size
-        self.do_project = do_project
         self.stride = stride
         self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
@@ -27,9 +26,9 @@ class PatchEmbedding(nn.Module):
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
-        self.tokenize = nn.Unfold(kernel_size=self.patch_size,
-                                  stride=self.stride, padding=self.padding, dilation=self.dilation)
         self.projection = nn.Sequential(
+            nn.Unfold(kernel_size=self.patch_size,
+                      stride=self.stride, padding=self.padding, dilation=self.dilation),
             Rearrange('b c d -> b d c'),
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
@@ -41,12 +40,29 @@ class PatchEmbedding(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
-        x = self.tokenize(x)
-        if self.do_project:
-            x = self.projection(x)
+        x = self.projection(x)
         x += self.positions
         return x
 
+
+class PatchUnEmbedding(nn.Module):
+    def __init__(self, patch_size: int = PATCH_SIZE, stride: int = 1, out_size: int = 512):
+        self.patch_size = patch_size
+        self.stride = stride
+        self.padding = 0 if stride == patch_size else int((patch_size - 1) / 2)
+        self.dilation = 1
+        self.out_size = out_size
+        super().__init__()
+
+        self.fold = \
+            nn.Fold((self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride, padding=self.padding)
+        self.norm = NormLayer(output_size=(self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride,
+                              padding=self.padding)
+
+    def forward(self, x):
+        x = self.fold(x)
+        x = self.norm(x)
+        return x
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, emb_size: int = 768, num_heads: int = 8, dropout: float = 0):
