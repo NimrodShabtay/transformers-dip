@@ -1,5 +1,4 @@
-from vit_model import PatchEmbedding, PrintLayer, MaskedTransformerEncoderLayer, TransformerEncoderBlock, NormLayer
-from timm.models.vision_transformer import Block as TransformerViTBlock
+from vit_model import *
 from models.common import *
 
 from einops.layers.torch import Rearrange
@@ -46,7 +45,7 @@ def skip_hybrid(
     last_scale = n_scales - 1
     num_heads = 8
     conv_blocks_ends = -1
-    transformer_activation = 'relu'
+    transformer_activation = 'gelu'
     patch_sz = 8
     dropout_rate = 0.0
     stride = patch_sz // 2
@@ -123,14 +122,15 @@ def skip_hybrid(
             deeper.add(
                 transformer_block(input_depth,
                                   num_channels_down[i],
-                                  num_heads, transformer_activation, dropout_rate))
+                                  num_heads, transformer_activation, dropout_rate,
+                                  debug_name='encoder_0_level_{}'.format(i)))
             deeper.add(norm1d(num_channels_down[i]))
             deeper.add(act(act_fun))
 
             # deeper.add(
             #     transformer_block(num_channels_down[i],
             #                       num_channels_down[i],
-            #                       num_heads, transformer_activation, dropout_rate))
+            #                       num_heads, transformer_activation, dropout_rate, 'encoder_1_level_{}'.format(i)))
             # deeper.add(norm1d(num_channels_down[i]))
             # deeper.add(act(act_fun))
 
@@ -164,7 +164,8 @@ def skip_hybrid(
             model_tmp.add(
                 transformer_block(current_channels_count,
                                   num_channels_up[i],
-                                  num_heads, transformer_activation, dropout_rate))
+                                  num_heads, transformer_activation, dropout_rate,
+                                  debug_name='decoder_0_level_{}'.format(i)))
             model_tmp.add(norm1d(num_channels_up[i]))
 
         model_tmp.add(act(act_fun))
@@ -177,7 +178,8 @@ def skip_hybrid(
                 model_tmp.add(
                     transformer_block(num_channels_up[i],
                                       num_channels_up[i],
-                                      num_heads, transformer_activation, dropout_rate))
+                                      num_heads, transformer_activation, dropout_rate,
+                                      debug_name='decoder_0_level_{}'.format(i)))
                 model_tmp.add(norm1d(num_channels_up[i]))
 
             model_tmp.add(act(act_fun))
@@ -208,16 +210,18 @@ def skip_hybrid(
     return model
 
 
-def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4):
+def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4, debug_name=''):
     d = OrderedDict(
         [
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
             # ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
             #                                                dropout_rate, activation=transformer_act, batch_first=True)),
             # ('transformer_msa', TransformerEncoderBlock(input_dims)),
-            ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
-                                                              dropout_rate, activation=transformer_act,
-                                                              batch_first=True)),
+            # ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
+            #                                                   dropout_rate, activation=transformer_act,
+            #                                                   batch_first=True)),
+            ('transformer_msa', ViTBlock(input_dims, num_heads, ff_expansion,
+                                         drop=dropout_rate, act_layer=nn.GELU, debug_name=debug_name)),
         ]
     )
     if input_dims != output_dims:
@@ -243,4 +247,3 @@ def downsampling_block(dim, scale_factor):
     block.add(nn.MaxPool2d(scale_factor))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
     return block
-

@@ -1,14 +1,14 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-# from timm.models.layers import trunc_normal_
+from timm.models.layers import Mlp, DropPath, trunc_normal_, lecun_normal_
 
 from torch import nn
 from torch import Tensor
 from einops import rearrange
 from einops.layers.torch import Rearrange
 
-from utils.common_utils import get_current_iter_num
+from utils.common_utils import get_current_iter_num, attention_debug_func
 
 BATCH_SIZE = 1
 IMG_DIM = 32
@@ -156,7 +156,7 @@ class PrintLayer(nn.Module):
 def src_mask(sz, p=0):
     device_ = 'cuda' if torch.cuda.is_available() else 'cpu'
     mask = 1 - (torch.diag(torch.from_numpy(np.random.binomial(1, 1 - p, size=sz)))).transpose(0, 1)
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    mask = mask.float().masked_fill_(mask == 0, float('-inf')).masked_fill_(mask == 1, float(0.0))
     return mask.to(device_)
 
 
@@ -201,3 +201,71 @@ class NormLayer(nn.Module):
     def forward(self, src):
         norm_src = src / self.norm_mask
         return norm_src
+
+
+# timm implementation with addition mask
+########################################
+class Attention(nn.Module):
+    def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0., debug_name=''):
+        super().__init__()
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        self.scale = head_dim ** -0.5
+
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+        self.mask = None
+        self.th1 = 800
+        self.th2 = 1500
+        self.debug_func = attention_debug_func
+        self.debug_name = debug_name
+
+    def forward(self, x):
+        curr_iter = get_current_iter_num()
+        if curr_iter < self.th1:
+            p = 0
+        elif self.th1 <= curr_iter < self.th2:
+            p = 0.5
+        elif curr_iter >= self.th2:
+            p = 1
+        self.mask = src_mask(x.shape[1], p)
+
+        B, N, C = x.shape
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn += self.mask
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+        if get_current_iter_num() % 100 == 0:
+            self.debug_func(attention_map=attn, debug_name=self.debug_name)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
+class ViTBlock(nn.Module):
+    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0.,
+                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, debug_name=''):
+        super().__init__()
+        self.norm1 = norm_layer(dim)
+        self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop,
+                              debug_name=debug_name)
+        # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.norm2 = norm_layer(dim)
+        mlp_hidden_dim = int(dim * mlp_ratio)
+        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+
+    def forward(self, x):
+        x = x + self.drop_path(self.attn(self.norm1(x)))
+        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        return x
+

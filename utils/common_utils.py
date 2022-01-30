@@ -345,6 +345,7 @@ def plot_grad_flow(named_parameters):
 
 
 curr_iter = 0
+save_dir = '.'
 
 
 def get_current_iter_num():
@@ -355,3 +356,33 @@ def get_current_iter_num():
 def set_current_iter_num(val):
     global curr_iter
     curr_iter = val
+
+def set_save_dir(val):
+    global save_dir
+    save_dir = val
+
+
+def get_save_dir():
+    global save_dir
+    return save_dir
+
+
+def attention_debug_func(attention_map, debug_name):
+    b, num_heads, t1, t2 = attention_map.shape
+    plot_limit = num_heads // 2
+    fig, ax = plt.subplots(2, plot_limit, figsize=(20, 20))
+    for attn_ind in range(num_heads):
+        current_map = attention_map[0, attn_ind]
+        current_ax = ax[attn_ind // plot_limit][attn_ind % plot_limit]
+        mean, std = torch.std_mean(current_map[current_map != 0.0])
+        # vmin, vmax = torch.min(current_map[current_map != 0.0]), torch.max(current_map[current_map != 0.0])
+        im = current_ax.imshow(current_map.detach().cpu().numpy(), cmap='gray')
+        # im.clim(vmin, vmax)
+        fig.colorbar(im, ax=current_ax, fraction=0.046, pad=0.04)
+        current_ax.set_title('Head #{0}\n mean: {1:2.3f} std: {2:2.3f}'.format(attn_ind, mean.detach(), std.detach()))
+
+    plt.subplots_adjust(hspace=0., wspace=0.3)
+    plt.savefig(os.path.join(get_save_dir(), '{}_iter{}.png'.format(debug_name, get_current_iter_num())))
+    plt.close(fig)
+
+

@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import os.path
 from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
@@ -6,7 +8,7 @@ from datetime import datetime
 import logging
 import sys
 from utils.denoising_utils import *
-from utils.common_utils import set_current_iter_num
+from utils.common_utils import set_current_iter_num, set_save_dir
 from models import *
 
 
@@ -31,7 +33,7 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
+        'filters': 512,
         'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
@@ -49,7 +51,10 @@ params_dict = {
 
 EXP = 'transformer'
 d = params_dict[EXP]
-os.mkdir(d['save_dir'])
+set_save_dir(d['save_dir'])
+
+if not os.path.isdir(d['save_dir']):
+    os.mkdir(d['save_dir'])
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -118,7 +123,7 @@ if __name__ == '__main__':
 
     elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
         num_iter = 3000
-        input_depth = 4
+        input_depth = 8
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
