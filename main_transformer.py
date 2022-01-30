@@ -1,4 +1,7 @@
 from __future__ import print_function
+
+import os.path
+
 from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
@@ -31,7 +34,7 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 1024,  # 8 * 8 * 16
+        'filters': 512,  # 8 * 8 * 8
         'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',
@@ -50,7 +53,8 @@ params_dict = {
 filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
 EXP = 'transformer'
 d = params_dict[EXP]
-os.mkdir(d['save_dir'])
+if not os.path.isdir(d['save_dir']):
+    os.mkdir(d['save_dir'])
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -119,7 +123,7 @@ if __name__ == '__main__':
 
     elif fname in filenames:
         num_iter = 3000
-        input_depth = 16
+        input_depth = 8
         figsize = 4
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
