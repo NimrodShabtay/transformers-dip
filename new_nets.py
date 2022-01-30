@@ -44,17 +44,16 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 8
-    conv_blocks_ends = -1
+    transformer_blocks_start = 3
     transformer_activation = 'relu'
-    patch_sz = 8
+    patch_sz = 4
     dropout_rate = 0.0
-    stride = patch_sz // 2
-    final_pad = 0 if stride == patch_sz else (patch_sz - 1) // 2
-    assert conv_blocks_ends <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
+    stride = patch_sz #// 2
+    assert transformer_blocks_start <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
         'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
-            num_heads, conv_blocks_ends, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
+            num_heads, transformer_blocks_start, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
     logger.info('Mask self attention')
     model = nn.Sequential()
@@ -62,7 +61,7 @@ def skip_hybrid(
 
     input_depth = num_input_channels
     org_spatial_dim = img_sz
-    if conv_blocks_ends < 0:
+    if transformer_blocks_start < 0:
         patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz)
         model_tmp.add(patch_emb_layer)
         input_depth = num_channels_down[0]
@@ -74,26 +73,26 @@ def skip_hybrid(
         skip = nn.Sequential()
 
         if num_channels_skip[i] != 0:
-            if i <= conv_blocks_ends:
+            if i < transformer_blocks_start:
                 model_tmp.add(Concat(1, skip, deeper))
             else:
-                if i == conv_blocks_ends + 1 and conv_blocks_ends != -1:
+                if i == transformer_blocks_start:
                     # Finish with conv blocks, project to 1D for transformer blocks
                     model_tmp.add(
-                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
-                                       emb_size=num_channels_down[i], img_size=current_spatial_dim))
+                        PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz, stride=stride,
+                                       emb_size=num_channels_down[i], img_size=current_spatial_dim // 2))
                 model_tmp.add(Concat1d(1, skip, deeper))
         else:
             model_tmp.add(deeper)
 
         channels_ = num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])
-        if i <= conv_blocks_ends:
+        if i <= transformer_blocks_start:
             model_tmp.add(bn(channels_))
         else:
             model_tmp.add(norm1d(channels_))
 
         if num_channels_skip[i] != 0:
-            if i <= conv_blocks_ends:
+            if i <= transformer_blocks_start:
                 skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
                 skip.add(bn(num_channels_skip[i]))
             else:
@@ -104,7 +103,7 @@ def skip_hybrid(
 
             skip.add(act(act_fun))
 
-        if i <= conv_blocks_ends:
+        if i <= transformer_blocks_start:
             deeper.add(conv(input_depth, num_channels_down[i], filter_size_down[i], 2, bias=need_bias, pad=pad,
                             downsample_mode=downsample_mode[i]))
             deeper.add(bn(num_channels_down[i]))
@@ -143,12 +142,10 @@ def skip_hybrid(
             k = num_channels_up[i + 1]
 
         current_channels_count = num_channels_skip[i] + k
-        if i <= conv_blocks_ends:
-            if i == conv_blocks_ends:
-                deeper.add(Rearrange('b c l -> b l c'))
-
+        if i <= transformer_blocks_start:
+            if i == transformer_blocks_start:
                 next_spatial_dim = current_spatial_dim // 2
-                deeper.add(Rearrange('b (h w) c -> b c (h) (w)', h=next_spatial_dim, w=next_spatial_dim))
+                deeper.add(PatchUnEmbedding(patch_size=patch_sz, stride=stride, out_size=next_spatial_dim))
 
             deeper.add(nn.Upsample(scale_factor=2, mode='bilinear'))
             model_tmp.add(
@@ -169,7 +166,7 @@ def skip_hybrid(
         model_tmp.add(act(act_fun))
 
         if need1x1_up:
-            if i <= conv_blocks_ends:
+            if i <= transformer_blocks_start:
                 model_tmp.add(conv(num_channels_up[i], num_channels_up[i], 1, bias=need_bias, pad=pad))
                 model_tmp.add(bn(num_channels_up[i]))
                 model_tmp.add(act(act_fun))
@@ -187,7 +184,7 @@ def skip_hybrid(
         model_tmp = deeper_main
         current_spatial_dim = org_spatial_dim // 2 ** i
 
-    if conv_blocks_ends >= 0:
+    if transformer_blocks_start >= 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
         model.add(Rearrange('b c l -> b l c'))

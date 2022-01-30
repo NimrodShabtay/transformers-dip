@@ -64,6 +64,7 @@ class PatchUnEmbedding(nn.Module):
         x = self.norm(x)
         return x
 
+
 class MultiHeadAttention(nn.Module):
     def __init__(self, emb_size: int = 768, num_heads: int = 8, dropout: float = 0):
         super().__init__()
