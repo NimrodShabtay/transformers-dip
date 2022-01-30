@@ -34,7 +34,7 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,  # 8 * 8 * 8
+        'filters': 32,  # 8 * 8 * 8
         'scales': 4,
         'title': 'Transformer ',
         'filename': 'transformer',

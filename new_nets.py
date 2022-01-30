@@ -44,11 +44,11 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 8
-    transformer_blocks_start = 3
+    transformer_blocks_start = 2
     transformer_activation = 'relu'
-    patch_sz = 4
+    patch_sz = 2
     dropout_rate = 0.0
-    stride = patch_sz #// 2
+    stride = patch_sz if transformer_blocks_start != -1 else patch_sz // 2
     assert transformer_blocks_start <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
 
     logger.info(
