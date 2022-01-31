@@ -17,8 +17,9 @@ PATCH_SIZE = 2
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, stride: int = 1,
-                 emb_size: int = 768, img_size: int = 512):
+                 emb_size: int = 768, img_size: int = 512, do_project=True):
         self.patch_size = patch_size
+        self.do_project = do_project
         self.stride = stride
         self.padding = int((patch_size - 1) / 2)
         self.dilation = 1
@@ -26,22 +27,46 @@ class PatchEmbedding(nn.Module):
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
+        self.tokenize = nn.Unfold(kernel_size=self.patch_size,
+                                  stride=self.stride, padding=self.padding, dilation=self.dilation)
         self.projection = nn.Sequential(
-            # Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
-            nn.Unfold(kernel_size=self.patch_size, stride=self.stride, padding=self.padding, dilation=self.dilation),
             Rearrange('b c d -> b d c'),
             nn.Linear(patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
         )
-        self.positions = nn.Parameter(torch.randn(emb_size, self.L))
+        pos_size = emb_size if do_project else patch_dim
+        self.positions = nn.Parameter(torch.randn(pos_size, self.L))
         # trunc_normal_(self.positions)
         # for p_ in self.projection.parameters():
         #     trunc_normal_(p_)
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
-        x = self.projection(x)
+        x = self.tokenize(x)
+        if self.do_project:
+            x = self.projection(x)
         x += self.positions
+        return x
+
+
+class PatchUnEmbedding(nn.Module):
+    def __init__(self, emb_size, patch_size: int = PATCH_SIZE, stride: int = 1, out_size: int = 512):
+        self.patch_size = patch_size
+        self.stride = stride
+        self.padding = 0 if stride == patch_size else int((patch_size - 1) / 2)
+        self.dilation = 1
+        self.out_size = out_size
+        self.emb_size = emb_size
+        super().__init__()
+
+        self.fold = \
+            nn.Fold((self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride, padding=self.padding)
+        self.norm = NormLayer(output_size=(self.out_size, self.out_size), kernel_size=self.patch_size, stride=stride,
+                              padding=self.padding, in_channels=self.emb_size)
+
+    def forward(self, x):
+        x = self.fold(x)
+        x = self.norm(x)
         return x
 
 
@@ -185,16 +210,17 @@ class MaskedTransformerEncoderLayer(nn.Module):
 
 
 class NormLayer(nn.Module):
-    def __init__(self, output_size, kernel_size, padding, stride):
+    def __init__(self, output_size, kernel_size, padding, stride, in_channels):
         super(NormLayer, self).__init__()
         self.fold_params = dict(kernel_size=kernel_size, dilation=1, padding=padding, stride=stride)
         self.output_size = output_size
+        self.in_channels = in_channels
         self.norm_mask = self.generate_norm_mask()
 
     def generate_norm_mask(self):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         norm_mask = nn.Fold(output_size=self.output_size, **self.fold_params) \
-            (nn.Unfold(**self.fold_params)(torch.ones(1, 3, *self.output_size)))
+            (nn.Unfold(**self.fold_params)(torch.ones(1, self.in_channels, *self.output_size)))
         assert (norm_mask != 0).all()
         return norm_mask.to(device)
 
