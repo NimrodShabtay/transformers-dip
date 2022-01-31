@@ -44,7 +44,7 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 8
-    transformer_blocks_start = 2
+    transformer_blocks_start = 3
     transformer_activation = 'relu'
     patch_sz = 2
     dropout_rate = 0.0

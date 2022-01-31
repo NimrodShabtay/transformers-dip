@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-import os.path
-from torchinfo import summary
-
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
 import logging
@@ -52,7 +49,10 @@ params_dict = {
 filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
 EXP = 'transformer'
 d = params_dict[EXP]
-os.mkdir(d['save_dir'])
+set_save_dir(d['save_dir'])
+if not os.path.isdir(d['save_dir']):
+    os.mkdir(d['save_dir'])
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",

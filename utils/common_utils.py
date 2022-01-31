@@ -262,7 +262,7 @@ def plot_denoising_results(
         count, filename, save_dir):
 
     global best_psnr_gt
-    fig, axes = plt.subplots(1, 3, figsize=(20, 20))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
     axes[0].imshow(img_org)
     axes[0].set_title('Original Image')
     axes[0].axis('off')
