@@ -130,7 +130,8 @@ def skip_hybrid(
             deeper.add(
                 transformer_block(num_channels_down[i],
                                   num_channels_down[i],
-                                  num_heads, transformer_activation, dropout_rate))
+                                  num_heads, transformer_activation, dropout_rate,
+                                  debug_name='encoder_0_level_{}'.format(i)))
             deeper.add(norm1d(num_channels_down[i]))
             deeper.add(act(act_fun))
 
@@ -165,7 +166,8 @@ def skip_hybrid(
             model_tmp.add(
                 transformer_block(current_channels_count,
                                   num_channels_up[i],
-                                  num_heads, transformer_activation, dropout_rate))
+                                  num_heads, transformer_activation, dropout_rate,
+                                  debug_name='decoder_0_level_{}'.format(i)))
             model_tmp.add(norm1d(num_channels_up[i]))
 
         model_tmp.add(act(act_fun))
@@ -209,7 +211,7 @@ def skip_hybrid(
     return model
 
 
-def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4):
+def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropout_rate, ff_expansion=4, debug_name=''):
     d = OrderedDict(
         [
             ('transformer_rearrange_before', Rearrange('b c l -> b l c')),
@@ -220,7 +222,7 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
             #                                                   dropout_rate, activation=transformer_act,
             #                                                   batch_first=True)),
             ('transformer_msa', ViTBlock(input_dims, num_heads, ff_expansion,
-                                         drop=dropout_rate, act_layer=nn.GELU, debug_name=debug_name)),
+                                         drop=dropout_rate, act_layer=nn.ReLU, debug_name=debug_name)),
         ]
     )
     if input_dims != output_dims:
