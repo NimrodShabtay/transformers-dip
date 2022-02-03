@@ -7,7 +7,7 @@ import sys
 from utils.denoising_utils import *
 from utils.common_utils import set_current_iter_num, set_save_dir
 from models import *
-
+from SwinIR.models.network_swinir import SwinIR
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -38,8 +38,8 @@ params_dict = {
     },
     'SwinIR': {
         'model': 'SwinIR',
-        'filters': 60,
-        'scales': 4,
+        'filters': 180,
+        'scales': 6,
         'title': 'SwinIR ',
         'filename': 'swin_ir',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -123,6 +123,17 @@ if __name__ == '__main__':
         num_iter = 3000
         input_depth = 8
         figsize = 4
+
+        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
+        #              img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
+
+        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
+        #              img_range=1., depths=[6, 6, 6], embed_dim=90, num_heads=[6, 6, 6],
+        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
+
+        # net = net.cuda()
+
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,

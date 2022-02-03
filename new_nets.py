@@ -49,7 +49,7 @@ def skip_hybrid(
     patch_sz = 8
     dropout_rate = 0.0
     do_proj = transformer_blocks_start <= 0
-    stride = patch_sz if do_proj else patch_sz // 2
+    stride = patch_sz // 2 if do_proj else patch_sz
     assert transformer_blocks_start <= n_scales, "transformer_blocks_start index must be smaller than n_scales, or -1 for non-conv blocks"
 
     depth = num_input_channels if transformer_blocks_start == 0 else num_channels_down[transformer_blocks_start]
@@ -58,7 +58,7 @@ def skip_hybrid(
     num_channels_up[transformer_blocks_start:] = [patch_sz * patch_sz * depth for k in
                                                   range(transformer_blocks_start, len(num_channels_up))]
     logger.info(
-        'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
+        'Num heads: {} transformer blocks start: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
             num_heads, transformer_blocks_start, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
     logger.info('Mask self attention')
@@ -78,6 +78,7 @@ def skip_hybrid(
     spatial_dim_before_embedding = org_spatial_dim
     j = 0
     for i in range(len(num_channels_down)):
+        embed = False
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
@@ -100,9 +101,8 @@ def skip_hybrid(
                                                      stride=stride, emb_size=num_channels_down[i],
                                                      img_size=current_spatial_dim, do_project=do_proj)
                     spatial_dim_before_embedding = current_spatial_dim
-                    org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
-                    current_spatial_dim = org_spatial_dim
-                    j = -1
+                    current_spatial_dim = int(np.sqrt(patch_emb_layer.L))
+                    embed = True
                     deeper.add(patch_emb_layer)
 
                 else:
@@ -133,7 +133,7 @@ def skip_hybrid(
         else:
             # If the the first downsampling is done in the patch embedding layer
             # skip it in the last level for both upsampling and downsampling
-            if 0 < i < n_scales:
+            if transformer_blocks_start < i < n_scales:
                 deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2))
 
             deeper.add(
@@ -169,7 +169,7 @@ def skip_hybrid(
         else:  # Transformer part
             # If the the first downsampling is done in the patch embedding layer
             # skip it in the last level for both upsampling and downsampling
-            if i > 0:
+            if i > transformer_blocks_start:
                 deeper.add(upsampling_block(dim=current_spatial_dim // 2, scale_factor=2))
 
             model_tmp.add(
@@ -203,8 +203,7 @@ def skip_hybrid(
 
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
-        j += 1
-        current_spatial_dim = org_spatial_dim // 2 ** j
+        current_spatial_dim = current_spatial_dim // 2 if embed is False else current_spatial_dim
 
     if transformer_blocks_start > 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
