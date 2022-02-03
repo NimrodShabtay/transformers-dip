@@ -78,7 +78,6 @@ def skip_hybrid(
     spatial_dim_before_embedding = org_spatial_dim
     j = 0
     for i in range(len(num_channels_down)):
-        print(current_spatial_dim)
         deeper = nn.Sequential()
         skip = nn.Sequential()
 
