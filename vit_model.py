@@ -21,9 +21,10 @@ class PatchEmbedding(nn.Module):
         self.patch_size = patch_size
         self.do_project = do_project
         self.stride = stride
-        self.padding = int((patch_size - 1) / 2)
+        self.padding = 0 if stride == patch_size else int((patch_size - 1) / 2)
         self.dilation = 1
-        patch_dim = in_channels * patch_size * patch_size
+        self.patch_dim = in_channels * patch_size * patch_size
+        assert self.patch_dim == emb_size, 'Embedding size must be equal to in_channels * patch_sz * patch_sz'
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         super().__init__()
@@ -31,14 +32,10 @@ class PatchEmbedding(nn.Module):
                                   stride=self.stride, padding=self.padding, dilation=self.dilation)
         self.projection = nn.Sequential(
             Rearrange('b c d -> b d c'),
-            nn.Linear(patch_dim, emb_size),
+            nn.Linear(self.patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
         )
-        pos_size = emb_size if do_project else patch_dim
-        self.positions = nn.Parameter(torch.randn(pos_size, self.L))
-        # trunc_normal_(self.positions)
-        # for p_ in self.projection.parameters():
-        #     trunc_normal_(p_)
+        self.positions = nn.Parameter(torch.randn(self.patch_dim, self.L))
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
@@ -282,6 +279,7 @@ class ViTBlock(nn.Module):
                  drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, debug_name=''):
         super().__init__()
         self.norm1 = norm_layer(dim)
+        self.module_name = debug_name
         self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop,
                               debug_name=debug_name)
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
@@ -291,6 +289,7 @@ class ViTBlock(nn.Module):
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
 
     def forward(self, x):
+        # print(self.module_name, x.shape)
         x = x + self.drop_path(self.attn(self.norm1(x)))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x

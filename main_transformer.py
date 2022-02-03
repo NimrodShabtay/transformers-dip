@@ -30,8 +30,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 128,
-        'scales': 4,
+        'filters': 16,
+        'scales': 3,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -136,8 +136,8 @@ if __name__ == '__main__':
         #               skip_n11=4,
         #               num_scales=5,
         #               upsample_mode='bilinear').type(dtype)
-        # print(net)
-        # torch.save(net, 'model.pth')
+
+        print(net)
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()

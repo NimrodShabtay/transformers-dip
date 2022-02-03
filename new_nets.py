@@ -44,13 +44,19 @@ def skip_hybrid(
 
     last_scale = n_scales - 1
     num_heads = 8
-    transformer_blocks_start = 3
+    transformer_blocks_start = 0
     transformer_activation = 'relu'
-    patch_sz = 2
+    patch_sz = 8
     dropout_rate = 0.0
-    stride = patch_sz if transformer_blocks_start != -1 else patch_sz // 2
-    assert transformer_blocks_start <= n_scales, "conv_block_ends index must be smaller than n_scales, or -1 for non-conv blocks"
+    do_proj = transformer_blocks_start <= 0
+    stride = patch_sz if do_proj else patch_sz // 2
+    assert transformer_blocks_start <= n_scales, "transformer_blocks_start index must be smaller than n_scales, or -1 for non-conv blocks"
 
+    depth = num_input_channels if transformer_blocks_start == 0 else num_channels_down[transformer_blocks_start]
+    num_channels_down[transformer_blocks_start:] = [patch_sz * patch_sz * depth for k in
+                                                    range(transformer_blocks_start, len(num_channels_down))]
+    num_channels_up[transformer_blocks_start:] = [patch_sz * patch_sz * depth for k in
+                                                  range(transformer_blocks_start, len(num_channels_up))]
     logger.info(
         'Num heads: {} conv_block_ends: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
             num_heads, transformer_blocks_start, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
@@ -61,56 +67,60 @@ def skip_hybrid(
 
     input_depth = num_input_channels
     org_spatial_dim = img_sz
-    if transformer_blocks_start < 0:
-        patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz, do_project=True)
-        model_tmp.add(patch_emb_layer)
-        input_depth = num_channels_down[0]
-        org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
+    # if transformer_blocks_start < 0:
+    #     patch_emb_layer = PatchEmbedding(input_depth, patch_sz, stride, num_channels_down[0], img_sz,
+    #                                      do_project=do_proj)
+    #     model_tmp.add(patch_emb_layer)
+    #     input_depth = num_channels_down[0]
+    #     org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
 
     current_spatial_dim = org_spatial_dim
+    spatial_dim_before_embedding = org_spatial_dim
     j = 0
     for i in range(len(num_channels_down)):
+        print(current_spatial_dim)
         deeper = nn.Sequential()
         skip = nn.Sequential()
+
         if num_channels_skip[i] != 0:
             if i < transformer_blocks_start:
                 model_tmp.add(Concat(1, skip, deeper))
+                skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
+                skip.add(bn(num_channels_skip[i]))
             else:
-                if i == transformer_blocks_start:
-                    # Finish with conv blocks, project to 1D for transformer blocks
-                    patch_emb_layer = PatchEmbedding(in_channels=num_channels_down[i], patch_size=patch_sz,
-                                                     stride=stride, emb_size=num_channels_down[i],
-                                                     img_size=current_spatial_dim // 2, do_project=False)
-                    org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
-                    # Adapt sizes after tokenize the feature maps
-                    current_spatial_dim = org_spatial_dim
-                    j = 1
-                    num_channels_down[i:] = [patch_sz * patch_sz * num_channels_down[k] for k in
-                                             range(transformer_blocks_start, len(num_channels_down))]
-                    num_channels_up[i:] = [patch_sz * patch_sz * num_channels_up[k] for k in
-                                           range(transformer_blocks_start, len(num_channels_up))]
-                    model_tmp.add(patch_emb_layer)
                 model_tmp.add(Concat1d(1, skip, deeper))
+                if i == transformer_blocks_start:
+                    # Skip connection on full resolution before tokenize
+                    skip.add(Rearrange('b c w h -> b (w h) c', w=current_spatial_dim, h=current_spatial_dim))
+                    skip.add(nn.Linear(input_depth, num_channels_skip[i]))
+                    skip.add(Rearrange('b l c -> b c l'))
+                    skip.add(norm1d(num_channels_skip[i]))
+
+                    # Finish with conv blocks, project to 1D for transformer blocks
+                    patch_emb_layer = PatchEmbedding(in_channels=input_depth, patch_size=patch_sz,
+                                                     stride=stride, emb_size=num_channels_down[i],
+                                                     img_size=current_spatial_dim, do_project=do_proj)
+                    spatial_dim_before_embedding = current_spatial_dim
+                    org_spatial_dim = int(np.sqrt(patch_emb_layer.L))
+                    current_spatial_dim = org_spatial_dim
+                    j = -1
+                    deeper.add(patch_emb_layer)
+
+                else:
+                    skip.add(Rearrange('b c l -> b l c'))
+                    skip.add(nn.Linear(input_depth, num_channels_skip[i]))
+                    skip.add(Rearrange('b l c -> b c l'))
+                    skip.add(norm1d(num_channels_skip[i]))
+
+            skip.add(act(act_fun))
         else:
             model_tmp.add(deeper)
 
-        channels_ = num_channels_skip[i] + (num_channels_up[i + 1] if i < last_scale else num_channels_down[i])
+        channels_ = num_channels_skip[i] + (num_channels_up[i] if i < last_scale else num_channels_down[i])
         if i < transformer_blocks_start:
             model_tmp.add(bn(channels_))
         else:
             model_tmp.add(norm1d(channels_))
-
-        if num_channels_skip[i] != 0:
-            if i < transformer_blocks_start:
-                skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
-                skip.add(bn(num_channels_skip[i]))
-            else:
-                skip.add(Rearrange('b c l -> b l c'))
-                skip.add(nn.Linear(num_channels_down[i], num_channels_skip[i]))
-                skip.add(Rearrange('b l c -> b c l'))
-                skip.add(norm1d(num_channels_skip[i]))
-
-            skip.add(act(act_fun))
 
         if i < transformer_blocks_start:
             deeper.add(conv(input_depth, num_channels_down[i], filter_size_down[i], 2, bias=need_bias, pad=pad,
@@ -149,7 +159,7 @@ def skip_hybrid(
             k = num_channels_down[i]
         else:
             deeper.add(deeper_main)
-            k = num_channels_up[i + 1]
+            k = num_channels_up[i]
 
         current_channels_count = num_channels_skip[i] + k
         if i < transformer_blocks_start:
@@ -188,22 +198,22 @@ def skip_hybrid(
                 pass
 
         if i == transformer_blocks_start:
-            model_tmp.add(PatchUnEmbedding(emb_size=num_channels_up[i-1],
-                                        patch_size=patch_sz, stride=stride,
-                                        out_size=current_spatial_dim * patch_sz))
+            model_tmp.add(PatchUnEmbedding(emb_size=depth,
+                                           patch_size=patch_sz, stride=stride,
+                                           out_size=spatial_dim_before_embedding))
 
         input_depth = num_channels_down[i]
         model_tmp = deeper_main
-        current_spatial_dim = org_spatial_dim // 2 ** j
         j += 1
+        current_spatial_dim = org_spatial_dim // 2 ** j
 
     if transformer_blocks_start > 0:
         model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     else:
-        model.add(Rearrange('b c l -> b l c'))
-        model.add(nn.Linear(num_channels_down[0], patch_sz * patch_sz * num_output_channels))
-        model.add(Rearrange('b l c -> b c l'))
-        model.add(PatchUnEmbedding(emb_size=num_output_channels, patch_size=patch_sz, stride=stride, out_size=img_sz))
+        # model.add(Rearrange('b c l -> b l c'))
+        model.add(nn.Conv2d(in_channels=depth, out_channels=num_output_channels, kernel_size=1))
+        # model.add(Rearrange('b l c -> b c l'))
+        # model.add(PatchUnEmbedding(emb_size=num_output_channels, patch_size=patch_sz, stride=stride, out_size=img_sz))
 
     if need_sigmoid:
         model.add(nn.Sigmoid())
