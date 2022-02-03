@@ -120,7 +120,7 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname in filenames:
-        num_iter = 3000
+        num_iter = 5000
         input_depth = 8
         figsize = 4
 

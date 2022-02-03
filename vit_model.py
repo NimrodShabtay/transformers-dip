@@ -242,8 +242,8 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.mask = None
-        self.th1 = 800
-        self.th2 = 1500
+        self.th1 = 2000
+        self.th2 = 3000
         self.debug_func = attention_debug_func
         self.debug_name = debug_name
 
