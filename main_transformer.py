@@ -32,7 +32,7 @@ params_dict = {
     'transformer': {
         'model': 'skip_hybrid',
         'filters': 16,
-        'scales': 5,
+        'scales': 3,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     LR = 0.01
     WD = 0.3  # like in ViT, default for Pytorch 0.01
 
-    OPTIMIZER = 'adamW'  # 'LBFGS'
+    OPTIMIZER = 'adam'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
     logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
@@ -135,19 +135,19 @@ if __name__ == '__main__':
 
         # net = net.cuda()
 
-        net = get_net(input_depth, d['model'],
-                      pad, upsample_mode='linear',
-                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        # net = get_net(input_depth, d['model'],
+        #               pad, upsample_mode='linear',
+        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        # net = get_net(input_depth, 'skip', pad,
-        #               skip_n33d=128,
-        #               skip_n33u=128,
-        #               skip_n11=4,
-        #               num_scales=5,
-        #               upsample_mode='bilinear').type(dtype)
+        net = get_net(input_depth, 'skip', pad,
+                      skip_n33d=16,
+                      skip_n33u=16,
+                      skip_n11=4,
+                      num_scales=4,
+                      upsample_mode='bilinear').type(dtype)
 
         print(net)
         summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))

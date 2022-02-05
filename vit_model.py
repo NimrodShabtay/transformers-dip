@@ -44,10 +44,12 @@ class PatchEmbedding(nn.Module):
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         self.tokenize = nn.Unfold(kernel_size=self.patch_size,
                                   stride=self.stride, padding=self.padding, dilation=self.dilation)
+        self.norm = nn.LayerNorm(emb_size)
         self.projection = nn.Sequential(
             Rearrange('b c d -> b d c'),
             nn.Linear(self.patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
+            self.norm
         )
 
         self.proj_size = emb_size if do_project else self.patch_dim

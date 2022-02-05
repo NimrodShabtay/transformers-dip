@@ -61,7 +61,7 @@ def skip_hybrid(
         'Num heads: {} transformer blocks start: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
             num_heads, transformer_blocks_start, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
-    logger.info('Mask self attention')
+    logger.info('Mask self attention (timm) + norm after patch emb. proj. th1=2000, th2=3000')
     model = nn.Sequential()
     model_tmp = model
 
@@ -76,7 +76,6 @@ def skip_hybrid(
 
     current_spatial_dim = org_spatial_dim
     spatial_dim_before_embedding = org_spatial_dim
-    j = 0
     for i in range(len(num_channels_down)):
         embed = False
         deeper = nn.Sequential()
