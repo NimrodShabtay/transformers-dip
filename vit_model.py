@@ -39,7 +39,7 @@ class PatchEmbedding(nn.Module):
         self.padding = 0 if stride == patch_size else int((patch_size - 1) / 2)
         self.dilation = 1
         self.patch_dim = in_channels * patch_size * patch_size
-        assert self.patch_dim == emb_size, 'Embedding size must be equal to in_channels * patch_sz * patch_sz'
+        # assert self.patch_dim == emb_size, 'Embedding size must be equal to in_channels * patch_sz * patch_sz'
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
         self.tokenize = nn.Unfold(kernel_size=self.patch_size,
@@ -49,8 +49,10 @@ class PatchEmbedding(nn.Module):
             nn.Linear(self.patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
         )
+
+        self.proj_size = emb_size if do_project else self.patch_dim
         # self.positions = nn.Parameter(torch.randn(self.patch_dim, self.L))
-        self.positions = PositionalEncoding(self.patch_dim, self.L)
+        self.positions = PositionalEncoding(self.proj_size, self.L)
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
