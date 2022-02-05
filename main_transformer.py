@@ -7,7 +7,8 @@ import sys
 from utils.denoising_utils import *
 from utils.common_utils import set_current_iter_num, set_save_dir
 from models import *
-from SwinIR.models.network_swinir import SwinIR
+# from SwinIR.models.network_swinir import SwinIR
+from torchinfo import summary
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -31,7 +32,7 @@ params_dict = {
     'transformer': {
         'model': 'skip_hybrid',
         'filters': 16,
-        'scales': 3,
+        'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -149,7 +150,7 @@ if __name__ == '__main__':
         #               upsample_mode='bilinear').type(dtype)
 
         print(net)
-        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters

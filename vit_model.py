@@ -15,9 +15,24 @@ IMG_DIM = 32
 PATCH_SIZE = 2
 
 
+class PositionalEncoding(nn.Module):
+    def __init__(self, emb_size: int, spatial_size: int):
+        super(PositionalEncoding, self).__init__()
+        self.emb_size = emb_size
+        self.spatial_size = spatial_size
+
+        self.positions = nn.Parameter(torch.randn(self.emb_size, self.spatial_size))
+
+    def forward(self, x):
+        x += self.positions
+        return x
+
+
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels: int = 3, patch_size: int = PATCH_SIZE, stride: int = 1,
                  emb_size: int = 768, img_size: int = 512, do_project=True):
+        super(PatchEmbedding, self).__init__()
+
         self.patch_size = patch_size
         self.do_project = do_project
         self.stride = stride
@@ -27,7 +42,6 @@ class PatchEmbedding(nn.Module):
         assert self.patch_dim == emb_size, 'Embedding size must be equal to in_channels * patch_sz * patch_sz'
         self.L = int(np.floor(
             (img_size + 2 * self.padding - self.dilation * (self.patch_size - 1) - 1) / self.stride + 1) ** 2)
-        super().__init__()
         self.tokenize = nn.Unfold(kernel_size=self.patch_size,
                                   stride=self.stride, padding=self.padding, dilation=self.dilation)
         self.projection = nn.Sequential(
@@ -35,14 +49,16 @@ class PatchEmbedding(nn.Module):
             nn.Linear(self.patch_dim, emb_size),
             Rearrange('b d c -> b c d'),
         )
-        self.positions = nn.Parameter(torch.randn(self.patch_dim, self.L))
+        # self.positions = nn.Parameter(torch.randn(self.patch_dim, self.L))
+        self.positions = PositionalEncoding(self.patch_dim, self.L)
 
     def forward(self, x: Tensor) -> Tensor:
         # b, c, h, w = x.shape
         x = self.tokenize(x)
         if self.do_project:
             x = self.projection(x)
-        x += self.positions
+        # x += self.positions
+        x = self.positions(x)
         return x
 
 

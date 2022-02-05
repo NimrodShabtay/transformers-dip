@@ -94,7 +94,6 @@ def skip_hybrid(
                     skip.add(Rearrange('b c w h -> b (w h) c', w=current_spatial_dim, h=current_spatial_dim))
                     skip.add(nn.Linear(input_depth, num_channels_skip[i]))
                     skip.add(Rearrange('b l c -> b c l'))
-                    skip.add(norm1d(num_channels_skip[i]))
 
                     # Finish with conv blocks, project to 1D for transformer blocks
                     patch_emb_layer = PatchEmbedding(in_channels=input_depth, patch_size=patch_sz,
@@ -134,7 +133,7 @@ def skip_hybrid(
             # If the the first downsampling is done in the patch embedding layer
             # skip it in the last level for both upsampling and downsampling
             if transformer_blocks_start < i < n_scales:
-                deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2))
+                deeper.add(downsampling_block(dim=current_spatial_dim, scale_factor=2, emb_size=num_channels_down[i]))
 
             deeper.add(
                 transformer_block(num_channels_down[i],
@@ -170,7 +169,7 @@ def skip_hybrid(
             # If the the first downsampling is done in the patch embedding layer
             # skip it in the last level for both upsampling and downsampling
             if i > transformer_blocks_start:
-                deeper.add(upsampling_block(dim=current_spatial_dim // 2, scale_factor=2))
+                deeper.add(upsampling_block(dim=current_spatial_dim // 2, scale_factor=2, emb_size=num_channels_up[i]))
 
             model_tmp.add(
                 transformer_block(current_channels_count,
@@ -226,11 +225,11 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
             # ('transformer_msa', nn.TransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
             #                                                dropout_rate, activation=transformer_act, batch_first=True)),
             # ('transformer_msa', TransformerEncoderBlock(input_dims)),
-            # ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
-            #                                                   dropout_rate, activation=transformer_act,
-            #                                                   batch_first=True)),
-            ('transformer_msa', ViTBlock(input_dims, num_heads, ff_expansion,
-                                         drop=dropout_rate, act_layer=nn.ReLU, debug_name=debug_name)),
+            ('transformer_msa', MaskedTransformerEncoderLayer(input_dims, num_heads, ff_expansion * input_dims,
+                                                              dropout_rate, activation=transformer_act,
+                                                              batch_first=True)),
+            # ('transformer_msa', ViTBlock(input_dims, num_heads, ff_expansion,
+            #                              drop=dropout_rate, act_layer=nn.ReLU, debug_name=debug_name)),
         ]
     )
     if input_dims != output_dims:
@@ -242,18 +241,20 @@ def transformer_block(input_dims, output_dims, num_heads, transformer_act, dropo
     return t_block
 
 
-def upsampling_block(dim, scale_factor):
+def upsampling_block(dim, scale_factor, emb_size):
     block = nn.Sequential()
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
     block.add(nn.Upsample(scale_factor=scale_factor, mode='bilinear'))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim * scale_factor, h=dim * scale_factor))
+    block.add(PositionalEncoding(emb_size, (dim * scale_factor) ** 2))
     return block
 
 
-def downsampling_block(dim, scale_factor):
+def downsampling_block(dim, scale_factor, emb_size):
     block = nn.Sequential()
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
     block.add(nn.MaxPool2d(scale_factor))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
+    block.add(PositionalEncoding(emb_size, (dim // scale_factor)**2))
     return block
 
