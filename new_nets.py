@@ -253,7 +253,8 @@ def upsampling_block(dim, scale_factor, emb_size):
 def downsampling_block(dim, scale_factor, emb_size):
     block = nn.Sequential()
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
-    block.add(nn.MaxPool2d(scale_factor))
+    # block.add(nn.MaxPool2d(scale_factor))
+    block.add(PatchEmbedding(emb_size, 3, 2, emb_size, dim, False))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
     block.add(PositionalEncoding(emb_size, (dim // scale_factor)**2))
     return block
