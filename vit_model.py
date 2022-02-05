@@ -48,8 +48,8 @@ class PatchEmbedding(nn.Module):
         self.projection = nn.Sequential(
             Rearrange('b c d -> b d c'),
             nn.Linear(self.patch_dim, emb_size),
+            self.norm,
             Rearrange('b d c -> b c d'),
-            self.norm
         )
 
         self.proj_size = emb_size if do_project else self.patch_dim
