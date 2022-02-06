@@ -32,8 +32,8 @@ params_dict = {
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 16,
-        'scales': 3,
+        'filters': 32,
+        'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
     elif fname in filenames:
         # Add synthetic noise
-        imsize = (128, 128)
+        imsize = (256, 256)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_np = pil_to_np(img_pil)
 
@@ -136,22 +136,22 @@ if __name__ == '__main__':
 
         # net = net.cuda()
 
-        # net = get_net(input_depth, d['model'],
-        #               pad, upsample_mode='linear',
-        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        net = get_net(input_depth, d['model'],
+                      pad, upsample_mode='linear',
+                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        net = get_net(input_depth, 'skip', pad,
-                      skip_n33d=16,
-                      skip_n33u=16,
-                      skip_n11=4,
-                      num_scales=4,
-                      upsample_mode='bilinear').type(dtype)
+        # net = get_net(input_depth, 'skip', pad,
+        #               skip_n33d=16,
+        #               skip_n33u=16,
+        #               skip_n11=4,
+        #               num_scales=4,
+        #               upsample_mode='bilinear').type(dtype)
 
-        print(net)
-        summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
+        # print(net)
+        # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
     # Compute number of parameters
