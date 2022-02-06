@@ -27,7 +27,8 @@ params_dict = {
         'filters': 128,
         'scales': 5,
         'title': 'Original',
-        'filename': 'original'
+        'filename': 'original',
+        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     },
     'transformer': {
         'model': 'skip_hybrid',
