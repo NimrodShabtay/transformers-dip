@@ -101,7 +101,7 @@ if __name__ == '__main__':
     LR = 0.01
     WD = 0.3  # like in ViT, default for Pytorch 0.01
 
-    OPTIMIZER = 'adam'  # 'LBFGS'
+    OPTIMIZER = 'adamW'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
     logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
