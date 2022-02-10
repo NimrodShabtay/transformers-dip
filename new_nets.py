@@ -61,7 +61,7 @@ def skip_hybrid(
         'Num heads: {} transformer blocks start: {} norm: {}\n transformer act: {} patch size: {} dropout rate: {} patch stride: {}'.format(
             num_heads, transformer_blocks_start, norm1d.__name__, transformer_activation, patch_sz, dropout_rate, stride))
 
-    logger.info('Mask self attention (timm) + norm after patch emb. proj. th1=2000, th2=3000')
+    logger.info('Mask self attention (timm) + th1=2000, th2=3000')
     model = nn.Sequential()
     model_tmp = model
 
@@ -236,16 +236,16 @@ def upsampling_block(dim, scale_factor, emb_size):
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
     block.add(nn.Upsample(scale_factor=scale_factor, mode='bilinear'))
     block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim * scale_factor, h=dim * scale_factor))
-    block.add(PositionalEncoding(emb_size, (dim * scale_factor) ** 2))
+    # block.add(PositionalEncoding(emb_size, (dim * scale_factor) ** 2))
     return block
 
 
 def downsampling_block(dim, scale_factor, emb_size):
     block = nn.Sequential()
     block.add(Rearrange('b c (w h) -> b c (w) (h)', w=dim, h=dim))
-    block.add(PatchEmbedding(emb_size, 3, 2, emb_size, dim, True))
-    # block.add(nn.MaxPool2d(scale_factor))
-    # block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
+    # block.add(PatchEmbedding(emb_size, 3, 2, emb_size, dim, True))
+    block.add(nn.MaxPool2d(scale_factor))
+    block.add(Rearrange('b c (w) (h) -> b c (w h)', w=dim // scale_factor, h=dim // scale_factor))
     # block.add(PositionalEncoding(emb_size, (dim // scale_factor)**2))
     return block
 
