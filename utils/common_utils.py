@@ -292,24 +292,25 @@ def plot_training_curves(loss_vals, eval_vals, noise_eval_vals, save_dir):
     assert len(loss_vals) == len(eval_vals), "loss {} and eval {} lists are not in the same length".format(
         len(loss_vals), len(eval_vals))
     fig, ax = plt.subplots(3, 1, figsize=(20, 20))
+    ths = [100, 200]
     stpes_vec = [i for i in range(len(loss_vals))]
     ax[0].plot(stpes_vec, loss_vals)
     ax[0].set_xlabel('steps')
     ax[0].set_ylabel('mse')
     ax[0].set_title('MSE')
-    ax[0].vlines([2000, 3000], c='r')
+    ax[0].vlines(ths, ymin=0, ymax=1, color='r')
 
     ax[1].plot(stpes_vec, eval_vals)
     ax[1].set_xlabel('steps')
     ax[1].set_ylabel('dB')
     ax[1].set_title('PSNR-GT')
-    ax[1].vlines([2000, 3000], c='r')
+    ax[1].vlines(ths, ymin=0, ymax=1, color='r')
 
     ax[2].plot(stpes_vec, noise_eval_vals)
     ax[2].set_xlabel('steps')
     ax[2].set_ylabel('dB')
     ax[2].set_title('PSNR-Noisy')
-    ax[2].vlines([2000, 3000], c='r')
+    ax[2].vlines(ths, ymin=0, ymax=1, color='r')
 
     plt.savefig(os.path.join(save_dir, 'training_curves.png'))
     plt.close(fig)
