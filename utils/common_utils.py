@@ -257,27 +257,22 @@ best_psnr_gt = -1
 
 def plot_denoising_results(
         img_org, img_noise,
-        current_res, current_res_smooth,
-        psnr_gt, psnr_gt_smooth,
-        count, title, filename, save_dir):
+        current_res,
+        psnr_gt,
+        count, filename, save_dir):
 
     global best_psnr_gt
-    fig, axes = plt.subplots(2, 2, figsize=(20, 20))
-    axes[0][0].imshow(img_org)
-    axes[0][0].set_title('Original Image')
-    axes[0][0].axis('off')
-    axes[0][1].imshow(img_noise)
-    axes[0][1].set_title('Noisy Image')
-    axes[0][1].axis('off')
-    axes[1][0].imshow(current_res)
-    axes[1][0].set_title('Current Result (#{}) - PSNR {}'.format(count, psnr_gt))
-    axes[1][0].axis('off')
-    axes[1][1].imshow(current_res_smooth)
-    axes[1][1].set_title('Current Smooth(#{}) - PSNR {}'.format(count, psnr_gt_smooth))
-    axes[1][1].axis('off')
-
-    plt.suptitle(title)
-    # plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
+    axes[0].imshow(img_org)
+    axes[0].set_title('Original Image')
+    axes[0].axis('off')
+    axes[1].imshow(img_noise)
+    axes[1].set_title('Noisy Image')
+    axes[1].axis('off')
+    axes[2].imshow(current_res)
+    axes[2].set_title('Current Result (#{})\n PSNR {:2.3f}'.format(count, psnr_gt))
+    axes[2].axis('off')
+    plt.savefig(os.path.join(save_dir, '{}_{}.png'.format(filename, count)))
     plt.close(fig)
 
     if psnr_gt > best_psnr_gt:
@@ -297,21 +292,25 @@ def plot_training_curves(loss_vals, eval_vals, noise_eval_vals, save_dir):
     assert len(loss_vals) == len(eval_vals), "loss {} and eval {} lists are not in the same length".format(
         len(loss_vals), len(eval_vals))
     fig, ax = plt.subplots(3, 1, figsize=(20, 20))
+    ths = [2000, 3000]
     stpes_vec = [i for i in range(len(loss_vals))]
     ax[0].plot(stpes_vec, loss_vals)
     ax[0].set_xlabel('steps')
     ax[0].set_ylabel('mse')
     ax[0].set_title('MSE')
+    ax[0].vlines(ths, ymin=0, ymax=1, color='r')
 
     ax[1].plot(stpes_vec, eval_vals)
     ax[1].set_xlabel('steps')
     ax[1].set_ylabel('dB')
     ax[1].set_title('PSNR-GT')
+    ax[1].vlines(ths, ymin=0, ymax=1, color='r')
 
     ax[2].plot(stpes_vec, noise_eval_vals)
     ax[2].set_xlabel('steps')
     ax[2].set_ylabel('dB')
     ax[2].set_title('PSNR-Noisy')
+    ax[2].vlines(ths, ymin=0, ymax=1, color='r')
 
     plt.savefig(os.path.join(save_dir, 'training_curves.png'))
     plt.close(fig)
@@ -350,6 +349,7 @@ def plot_grad_flow(named_parameters):
 
 
 curr_iter = 0
+save_dir = '.'
 
 
 def get_current_iter_num():
@@ -360,3 +360,33 @@ def get_current_iter_num():
 def set_current_iter_num(val):
     global curr_iter
     curr_iter = val
+
+def set_save_dir(val):
+    global save_dir
+    save_dir = val
+
+
+def get_save_dir():
+    global save_dir
+    return save_dir
+
+
+def attention_debug_func(attention_map, debug_name):
+    b, num_heads, t1, t2 = attention_map.shape
+    plot_limit = num_heads // 2
+    fig, ax = plt.subplots(2, plot_limit, figsize=(20, 10))
+    for attn_ind in range(num_heads):
+        current_map = attention_map[0, attn_ind]
+        current_ax = ax[attn_ind // plot_limit][attn_ind % plot_limit]
+        mean, std = torch.std_mean(current_map[current_map != 0.0])
+        # vmin, vmax = torch.min(current_map[current_map != 0.0]), torch.max(current_map[current_map != 0.0])
+        im = current_ax.imshow(current_map.detach().cpu().numpy(), cmap='gray')
+        # im.clim(vmin, vmax)
+        fig.colorbar(im, ax=current_ax, fraction=0.046, pad=0.04)
+        current_ax.set_title('Head #{0}\n mean: {1:2.3f} std: {2:2.3f}'.format(attn_ind, mean.detach(), std.detach()))
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(get_save_dir(), '{}_iter{}.png'.format(debug_name, get_current_iter_num())))
+    plt.close(fig)
+
+

@@ -1,14 +1,14 @@
 from __future__ import print_function
-from torchinfo import summary
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 from datetime import datetime
 import logging
 import sys
 from utils.denoising_utils import *
-from utils.common_utils import set_current_iter_num
+from utils.common_utils import set_current_iter_num, set_save_dir
 from models import *
-
+# from SwinIR.models.network_swinir import SwinIR
+from torchinfo import summary
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -27,21 +27,34 @@ params_dict = {
         'filters': 128,
         'scales': 5,
         'title': 'Original',
-        'filename': 'original'
+        'filename': 'original',
+        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     },
     'transformer': {
         'model': 'skip_hybrid',
-        'filters': 64,
+        'filters': 32,
         'scales': 5,
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
+    },
+    'SwinIR': {
+        'model': 'SwinIR',
+        'filters': 180,
+        'scales': 6,
+        'title': 'SwinIR ',
+        'filename': 'swin_ir',
+        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     }
 }
 
+filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
 EXP = 'transformer'
 d = params_dict[EXP]
-os.mkdir(d['save_dir'])
+set_save_dir(d['save_dir'])
+if not os.path.isdir(d['save_dir']):
+    os.mkdir(d['save_dir'])
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -54,7 +67,7 @@ logging.basicConfig(
 
 if __name__ == '__main__':
     logger = logging.getLogger('exp_logger')
-    fname = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png'][0]
+    fname = filenames[0]
     if fname == 'data/denoising/snail.jpg':
         img_noisy_pil = crop_image(get_image(fname, imsize)[0], d=8)
         img_noisy_np = pil_to_np(img_noisy_pil)
@@ -66,10 +79,10 @@ if __name__ == '__main__':
         if PLOT:
             plot_image_grid([img_np], 4, 5)
 
-    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
+    elif fname in filenames:
         # Add synthetic noise
+        imsize = (256, 256)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
-        # img_pil = img_pil.resize((128, 128), resample=Image.BICUBIC)
         img_np = pil_to_np(img_pil)
 
         img_noisy_pil, img_noisy_np = get_noisy_image(img_np, sigma_)
@@ -108,10 +121,21 @@ if __name__ == '__main__':
 
         net = net.type(dtype)
 
-    elif fname in ['data/denoising/F16_GT.png', 'data/inpainting/kate.png']:
-        num_iter = 3000
-        input_depth = 4
+    elif fname in filenames:
+        num_iter = 5000
+        input_depth = 8
         figsize = 4
+
+        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
+        #              img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
+
+        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
+        #              img_range=1., depths=[6, 6, 6], embed_dim=90, num_heads=[6, 6, 6],
+        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
+
+        # net = net.cuda()
+
         net = get_net(input_depth, d['model'],
                       pad, upsample_mode='linear',
                       skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
@@ -119,14 +143,14 @@ if __name__ == '__main__':
 
         logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        # net_ref = get_net(input_depth, 'skip', pad,
-        #               skip_n33d=128,
-        #               skip_n33u=128,
+        # net = get_net(input_depth, 'skip', pad,
+        #               skip_n33d=16,
+        #               skip_n33u=16,
         #               skip_n11=4,
-        #               num_scales=5,
+        #               num_scales=4,
         #               upsample_mode='bilinear').type(dtype)
+
         # print(net)
-        # torch.save(net, 'model.pth')
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
 
     net_input = get_noise(input_depth, INPUT, (img_pil.size[1], img_pil.size[0])).type(dtype).detach()
@@ -184,9 +208,9 @@ if __name__ == '__main__':
                 i, total_loss.item(), psnr_noisy, psnr_gt, psnr_gt_sm))
 
             out_np = out.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
-            out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
+            # out_sm_np = out_avg.detach().cpu().permute(0, 2, 3, 1).numpy()[0]
             plot_denoising_results(np.array(img_pil), np.array(img_noisy_pil),
-                                   out_np, out_sm_np, psnr_gt, psnr_gt_sm, i, EXP, EXP, d['save_dir'])
+                                   out_np, psnr_gt, i, EXP, d['save_dir'])
             plot_training_curves(mse_vals, psnr_gt_vals, psnr_noisy_gt_vals, d['save_dir'])
 
         # Backtracking
