@@ -1,6 +1,8 @@
 from __future__ import print_function
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 from datetime import datetime
 import logging
 import sys
@@ -37,19 +39,11 @@ params_dict = {
         'title': 'Transformer ',
         'filename': 'transformer',
         'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
-    },
-    'SwinIR': {
-        'model': 'SwinIR',
-        'filters': 180,
-        'scales': 6,
-        'title': 'SwinIR ',
-        'filename': 'swin_ir',
-        'save_dir': './exps/{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour, now.minute)
     }
 }
 
 filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
-EXP = 'transformer'
+EXP = 'org'
 d = params_dict[EXP]
 set_save_dir(d['save_dir'])
 if not os.path.isdir(d['save_dir']):
@@ -81,7 +75,7 @@ if __name__ == '__main__':
 
     elif fname in filenames:
         # Add synthetic noise
-        imsize = (256, 256)
+        # imsize = (512, 512)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_np = pil_to_np(img_pil)
 
@@ -101,7 +95,7 @@ if __name__ == '__main__':
     LR = 0.01
     WD = 0.3  # like in ViT, default for Pytorch 0.01
 
-    OPTIMIZER = 'adamW'  # 'LBFGS'
+    OPTIMIZER = 'adam'  # 'LBFGS'
     show_every = 100
     exp_weight = 0.99
     logger.info('Optimizer: {} LR: {} WD: {}'.format(OPTIMIZER, LR, WD))
@@ -122,33 +116,23 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname in filenames:
-        num_iter = 5000
+        num_iter = 15000
         input_depth = 8
         figsize = 4
 
-        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
-        #              img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
+        # net = get_net(input_depth, d['model'],
+        #               pad, upsample_mode='linear',
+        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
+        #
+        # logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
 
-        # net = SwinIR(upscale=1, in_chans=input_depth, img_size=img_pil.size[0], window_size=8,
-        #              img_range=1., depths=[6, 6, 6], embed_dim=90, num_heads=[6, 6, 6],
-        #              mlp_ratio=2, upsampler='', resi_connection='1conv')
-
-        # net = net.cuda()
-
-        net = get_net(input_depth, d['model'],
-                      pad, upsample_mode='linear',
-                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
-
-        logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
-
-        # net = get_net(input_depth, 'skip', pad,
-        #               skip_n33d=16,
-        #               skip_n33u=16,
-        #               skip_n11=4,
-        #               num_scales=4,
-        #               upsample_mode='bilinear').type(dtype)
+        net = get_net(input_depth, 'skip', pad,
+                      skip_n33d=128,
+                      skip_n33u=128,
+                      skip_n11=4,
+                      num_scales=5,
+                      upsample_mode='bilinear').type(dtype)
 
         # print(net)
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
@@ -160,7 +144,7 @@ if __name__ == '__main__':
 
     # Loss
     mse = torch.nn.MSELoss().type(dtype)
-    img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
+    # img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
 
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
@@ -179,6 +163,10 @@ if __name__ == '__main__':
 
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
+
+        _, img_noisy_np = get_noisy_image(img_np, sigma_)
+        img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
+
         out = net(net_input)
         # make_dot(out.mean(), params=dict(net.named_parameters())).render("attached", format='png')
 
