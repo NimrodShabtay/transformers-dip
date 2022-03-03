@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     elif fname in filenames:
         # Add synthetic noise
-        # imsize = (512, 512)
+        # imsize = (256, 256)
         img_pil = crop_image(get_image(fname, imsize)[0], d=32)
         img_np = pil_to_np(img_pil)
 
