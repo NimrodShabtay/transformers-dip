@@ -1,0 +1,11 @@
+einops==0.3.2
+matplotlib==3.4.3
+numpy==1.21.2
+opencv_python==4.5.2.52
+Pillow==9.0.1
+scikit_image==0.18.3
+skimage==0.18.3
+timm==0.4.12
+torch==1.9.0+cu111
+torchinfo==1.5.3
+torchvision==0.10.0+cu111
