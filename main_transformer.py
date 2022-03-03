@@ -2,14 +2,12 @@ from __future__ import print_function
 
 from skimage.metrics import peak_signal_noise_ratio as compare_psnr
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 from datetime import datetime
 import logging
 import sys
 from utils.denoising_utils import *
 from utils.common_utils import set_current_iter_num, set_save_dir
 from models import *
-# from SwinIR.models.network_swinir import SwinIR
 from torchinfo import summary
 
 torch.backends.cudnn.enabled = True
@@ -144,7 +142,7 @@ if __name__ == '__main__':
 
     # Loss
     mse = torch.nn.MSELoss().type(dtype)
-    # img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
+    img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
 
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
@@ -163,12 +161,7 @@ if __name__ == '__main__':
 
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
-
-        _, img_noisy_np = get_noisy_image(img_np, sigma_)
-        img_noisy_torch = np_to_torch(img_noisy_np).type(dtype)
-
         out = net(net_input)
-        # make_dot(out.mean(), params=dict(net.named_parameters())).render("attached", format='png')
 
         # Smoothing
         if out_avg is None:
@@ -179,7 +172,6 @@ if __name__ == '__main__':
         total_loss = mse(out, img_noisy_torch)
         mse_vals.append(total_loss.item())
         total_loss.backward()
-        # plot_grad_flow(net.named_parameters())
 
         psnr_noisy = compare_psnr(img_noisy_np, out.detach().cpu().numpy()[0])
         psnr_gt = compare_psnr(img_np, out.detach().cpu().numpy()[0])
