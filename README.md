@@ -11,3 +11,7 @@ All the visualiztions (training curves, intermediate results and the best result
 
 * Our architecture is in `new_nets.py`
 <br>Where all transformer related blocks are in `vit_model.py`
+
+## Run the code
+To run the code: <br>
+`python main_transformer.py`
