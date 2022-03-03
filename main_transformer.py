@@ -43,7 +43,7 @@ params_dict = {
 }
 
 filenames = ['data/denoising/F16_GT.png', 'data/inpainting/kate.png', 'data/inpainting/vase.png']
-EXP = 'org'
+EXP = 'transformer'
 d = params_dict[EXP]
 set_save_dir(d['save_dir'])
 if not os.path.isdir(d['save_dir']):
@@ -116,23 +116,23 @@ if __name__ == '__main__':
         net = net.type(dtype)
 
     elif fname in filenames:
-        num_iter = 15000
+        num_iter = 5000
         input_depth = 8
         figsize = 4
 
-        # net = get_net(input_depth, d['model'],
-        #               pad, upsample_mode='linear',
-        #               skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
-        #               num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
-        #
-        # logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
+        net = get_net(input_depth, d['model'],
+                      pad, upsample_mode='linear',
+                      skip_n33d=d['filters'], skip_n33u=d['filters'], skip_n11=8,
+                      num_scales=d['scales'], img_sz=img_pil.size[0]).type(dtype)
 
-        net = get_net(input_depth, 'skip', pad,
-                      skip_n33d=128,
-                      skip_n33u=128,
-                      skip_n11=4,
-                      num_scales=5,
-                      upsample_mode='bilinear').type(dtype)
+        logger.info('Num scales: {} Num channels in each level: {}'.format(d['scales'], d['filters']))
+
+        # net = get_net(input_depth, 'skip', pad,
+        #               skip_n33d=128,
+        #               skip_n33u=128,
+        #               skip_n11=4,
+        #               num_scales=5,
+        #               upsample_mode='bilinear').type(dtype)
 
         # print(net)
         # summary(net, (1, input_depth, img_pil.size[0], img_pil.size[1]))
